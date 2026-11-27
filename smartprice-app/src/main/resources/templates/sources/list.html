@@ -61,6 +61,33 @@
         </div>
     </section>
 
+    <section class="card" style="margin-top:16px" th:unless="${contextFiles.isEmpty()}">
+        <h2>Archivos de contexto</h2>
+        <p class="sub">Índices para comparar el mercado mayorista con los supermercados y la inflación (vista Contexto)</p>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Archivo</th>
+                    <th>Fuente</th>
+                    <th class="num">Registros</th>
+                    <th>SHA-256</th>
+                    <th>Adquisición</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="f : ${contextFiles}">
+                    <td th:text="${f.fileName()}">archivo.json</td>
+                    <td th:text="${f.system() == 'BCRP_INEI' ? 'IPC Lima (INEI, vía API del BCRP)' : (f.system() == 'QHAWARINA' ? 'Qhawarina (supermercados)' : f.system())}">fuente</td>
+                    <td class="num" th:text="${@fmt.num(f.rows())}">34</td>
+                    <td><code th:text="${f.shortSha256()}" th:title="${f.sha256()}">abc</code></td>
+                    <td class="muted" th:text="${f.acquisitionMethod() == 'api_download' ? 'API pública' : 'Descarga pública'}">Descarga</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
     <section class="card" style="margin-top:16px">
         <h2>Boletines procesados por Streaming</h2>
         <p class="sub">Spark Structured Streaming: cada boletín PDF diario del GMML se procesa al llegar

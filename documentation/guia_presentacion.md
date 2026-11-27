@@ -30,6 +30,7 @@ Si solo tienes **10 minutos**, sigue las indicaciones "Versión corta" de cada b
    - http://localhost:8085/ (Dashboard)
    - http://localhost:8085/product?name=Zanahoria
    - http://localhost:8085/alerts
+   - http://localhost:8085/context
    - http://localhost:8085/sources
 5. Prepara una **tercera** ventana de PowerShell para el Streaming (bloque 3, paso 5).
 6. Pon el navegador al 100–110 % de zoom y cierra todo lo demás.
@@ -134,12 +135,23 @@ Boletín PDF ──┘   Batch + Structured Streaming
 > **Qué decir:** "No uso un umbral fijo. Un 20 % puede ser normal para un producto volátil y
 > anormal para uno estable. Por eso el rango se calcula por producto con el método IQR."
 
-### Paso 4 · Fuentes y trazabilidad (1 min) — pestaña 4
+### Paso 4 · Contexto (1 min) — pestaña 4
+- Primer gráfico: desde enero de 2024, el mayorista subió **+39.8 %** frente al **+8.5 %** del IPC de Lima.
+- Señala que el IPC total y el IPC sin alimentos van casi pegados: en la canasta completa, los
+  alimentos no fueron los que empujaron la inflación.
+- Segundo gráfico: entre febrero y junio de 2026, el mayorista subió **+11.5 %** y los
+  supermercados estuvieron estables (**−1.3 %**).
+
+> **Qué decir:** "El mercado mayorista adelanta y amplifica lo que el consumidor ve después.
+> Los supermercados amortiguan esa volatilidad. Todas las series tienen la misma base = 100 y se
+> comparan en el mismo periodo."
+
+### Paso 5 · Fuentes y trazabilidad (1 min) — pestaña 5
 - Los 7 archivos de origen con su hash: "cada precio se puede rastrear hasta su archivo".
 - La tabla "Boletines procesados por Streaming", con **"54 de 54 coinciden"**.
 - Las notas de calidad de datos (Papa Blanca = Papa Yungay).
 
-### Paso 5 · Streaming en vivo (1 min, opcional) — tercera ventana
+### Paso 6 · Streaming en vivo (1 min, opcional) — tercera ventana
 ```powershell
 .\jobs.ps1 stream-prices
 ```
@@ -156,7 +168,7 @@ Espera el mensaje "Streaming activo". En otra ventana:
 > nombre: saldrá "nuevas 0, ya existían 54", lo cual también demuestra que no duplica.
 > Detén el Streaming con **Ctrl+C**.
 
-> **Versión corta:** omite el paso 5 y menciona las pruebas del Streaming en la diapositiva 10.
+> **Versión corta:** omite los pasos 4 y 6. Menciona el contexto en la diapositiva 9 y las pruebas del Streaming en la diapositiva 10.
 
 ---
 
@@ -172,11 +184,15 @@ Espera el mensaje "Streaming activo". En otra ventana:
 > **Qué decir:** "Es un patrón con sentido económico: menos oferta, precio más alto. El sistema
 > lo detecta solo y lo explica con el dato de volumen."
 
+Añade una línea de contexto: "En el conjunto, el mayorista subió un 39.8 % desde 2024, frente al
+8.5 % del IPC de Lima."
+
 ### Diapositiva 10 · Cómo sé que funciona
 
 | Verificación | Resultado |
 |---|---|
-| 20 pruebas automatizadas | Todas correctas |
+| 24 pruebas automatizadas | Todas correctas |
+| Índice mayorista recalculado de forma independiente | 8 de 8 valores coinciden |
 | SISAP frente al PDF | 54 de 54 coinciden |
 | Migración Python → Java | Resultados idénticos (62 599 filas) |
 | Streaming frente a Batch | Misma alerta reproducida desde el PDF |
@@ -241,10 +257,21 @@ Lo detecté analizando los datos: coinciden en 1 059 de 1 061 días, pero con vo
 Probablemente "Papa Blanca" es una categoría agregada que usa la Yungay como referencia. Lo dejé
 documentado como hallazgo de calidad de datos.
 
+**¿Cómo comparas precios en soles con el IPC, que es un índice?**
+Convierto los precios mayoristas en un índice con la fórmula de Jevons (la media geométrica de los
+cambios de precio de los 59 productos), la misma que usa Qhawarina. Luego llevo todas las series a
+una base común = 100 y las comparo en el mismo periodo. Comparo tendencias, no niveles: no son la
+misma canasta.
+
+**¿Por qué no usas el IPC de alimentos?**
+La API del BCRP no publica "alimentos y bebidas" como serie aparte con la base actual (dic. 2021).
+Uso el IPC total y el IPC sin alimentos: la diferencia entre ambos muestra el peso de los alimentos.
+No reconstruí esa serie con pesos supuestos, porque sería un dato inventado.
+
 **¿Por qué no incluiste supermercados?**
-No hay una fuente pública autorizada con precios por producto, y el índice disponible lleva meses
-sin actualizarse. Preferí un sistema completo y verificable con datos oficiales antes que uno con
-datos dudosos.
+Están como contexto, con el índice de Qhawarina, pero no producto por producto: no hay una fuente
+pública autorizada con esos precios, y el índice de Qhawarina no se actualiza desde junio de 2026.
+Preferí un sistema verificable con datos oficiales antes que uno con datos dudosos.
 
 ---
 

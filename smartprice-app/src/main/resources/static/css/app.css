@@ -13,7 +13,8 @@
   --border: rgba(11, 11, 11, 0.10);
 
   --series-1: #257de0;          /* precio */
-  --series-2: #f47230;          /* volumen */
+  --series-2: #f47230;          /* volumen / segunda serie */
+  --series-3: #00b894;          /* tercera serie */
   --div-up: #ec4647;            /* variación: encarece */
   --div-down: #257de0;          /* variación: abarata */
   --div-mid: #efefef;
@@ -42,6 +43,7 @@
     --border: rgba(255, 255, 255, 0.10);
     --series-1: #338ced;
     --series-2: #e76624;
+    --series-3: #00a888;
     --div-up: #eb6263;
     --div-down: #338ced;
     --div-mid: #383838;
@@ -63,6 +65,7 @@
   --border: rgba(255, 255, 255, 0.10);
   --series-1: #338ced;
   --series-2: #e76624;
+  --series-3: #00a888;
   --div-up: #eb6263;
   --div-down: #338ced;
   --div-mid: #383838;
@@ -334,3 +337,13 @@ footer.site {
   transform: translateX(-50%);
 }
 .range-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); }
+
+/* ---------- contexto ---------- */
+.chart-context { height: 340px; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 4px 0 8px; font-size: 13px; color: var(--text-secondary); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 16px; height: 2px; border-radius: 1px; display: inline-block; }
+.swatch-1 { background: var(--series-1); }
+.swatch-2 { background: var(--series-2); }
+.swatch-3 { background: var(--series-3); }
+.series-key { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }

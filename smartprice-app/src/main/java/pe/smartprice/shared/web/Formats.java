@@ -54,6 +54,13 @@ public class Formats {
         return i == null ? "—" : DATE_TIME.format(i.atZone(LIMA));
     }
 
+    private static final DateTimeFormatter MONTH_YEAR = DateTimeFormatter.ofPattern("MMM yyyy", ES_PE);
+
+    /** "oct. 2026" */
+    public String monthYear(LocalDate d) {
+        return d == null ? "—" : MONTH_YEAR.format(d);
+    }
+
     public String shortDate(LocalDate d) {
         return d == null ? "—" : SHORT.format(d);
     }

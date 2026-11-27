@@ -8,8 +8,8 @@ import java.util.List;
 public record DataCoverage(List<SourceFile> files, LocalDate firstDate, LocalDate lastDate, long totalRows) {
 
     public static DataCoverage of(List<SourceFile> files) {
-        LocalDate first = files.stream().map(SourceFile::firstDate).min(LocalDate::compareTo).orElse(null);
-        LocalDate last = files.stream().map(SourceFile::lastDate).max(LocalDate::compareTo).orElse(null);
+        LocalDate first = files.stream().map(SourceFile::firstDate).filter(java.util.Objects::nonNull).min(LocalDate::compareTo).orElse(null);
+        LocalDate last = files.stream().map(SourceFile::lastDate).filter(java.util.Objects::nonNull).max(LocalDate::compareTo).orElse(null);
         long rows = files.stream().mapToLong(SourceFile::rows).sum();
         return new DataCoverage(List.copyOf(files), first, last, rows);
     }

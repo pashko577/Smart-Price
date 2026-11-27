@@ -4,6 +4,7 @@ import java.util.Arrays;
 
 import pe.smartprice.jobs.analytics.BatchAnalyticsJob;
 import pe.smartprice.jobs.analytics.ExploreSisapJob;
+import pe.smartprice.jobs.context.LoadContextJob;
 import pe.smartprice.jobs.gmml.ExtractGmmlPdfJob;
 import pe.smartprice.jobs.mongo.LoadSisapJob;
 import pe.smartprice.jobs.mongo.MongoSetupJob;
@@ -19,6 +20,7 @@ import pe.smartprice.jobs.streaming.PriceStreamingJob;
  *   .\jobs.ps1 load-sisap     [csv_entrada]
  *   .\jobs.ps1 explore-sisap  [csv_entrada]
  *   .\jobs.ps1 batch-analytics
+ *   .\jobs.ps1 load-context
  *   .\jobs.ps1 extract-pdf    archivo.pdf [carpeta_salida]
  *   .\jobs.ps1 ingest-pdf     boletin.pdf [...]
  *   .\jobs.ps1 stream-prices  [--once]
@@ -42,6 +44,7 @@ public final class JobsMain {
             case "load-sisap" -> LoadSisapJob.run(rest);
             case "explore-sisap" -> ExploreSisapJob.run(rest);
             case "batch-analytics" -> BatchAnalyticsJob.run(rest);
+            case "load-context" -> LoadContextJob.run(rest);
             case "extract-pdf" -> ExtractGmmlPdfJob.run(rest);
             case "ingest-pdf" -> IngestPdfJob.run(rest);
             case "stream-prices" -> PriceStreamingJob.run(rest);
@@ -62,6 +65,7 @@ public final class JobsMain {
                   load-sisap     [csv_entrada]                Carga el CSV en MongoDB (Spark)
                   explore-sisap  [csv_entrada]                Exploración inicial con Spark
                   batch-analytics                             Tendencias, resúmenes y alertas IQR -> MongoDB
+                  load-context                                Qhawarina, IPC (BCRP/INEI) e índice GMML -> price_indexes
                   extract-pdf    archivo.pdf [carpeta]        Extrae la tabla de un boletín GMML
                   ingest-pdf     boletin.pdf [...]            Extrae boletines y los deja para el Streaming
                   stream-prices  [--once]                     Spark Structured Streaming de boletines nuevos

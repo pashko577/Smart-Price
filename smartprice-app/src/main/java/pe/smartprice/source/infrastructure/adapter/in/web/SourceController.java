@@ -21,6 +21,7 @@ public class SourceController {
     @GetMapping("/sources")
     public String sources(Model model) {
         model.addAttribute("coverage", coverage.coverage());
+        model.addAttribute("contextFiles", coverage.contextFiles());
         model.addAttribute("runs", coverage.recentRuns(RECENT_RUNS));
         model.addAttribute("active", "sources");
         return "sources/list";

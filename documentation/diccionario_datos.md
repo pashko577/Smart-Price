@@ -10,6 +10,7 @@ con `readWrite` solo sobre esta base.
 | `price_analytics` | `batch-analytics` | Streaming, web | 2 065 `PRICE_MONTHLY` + 59 `PRODUCT_SUMMARY` + 59 `ALERT_BASELINE` |
 | `price_alerts` | `batch-analytics`, `stream-prices` | web | 1 666 |
 | `processing_logs` | `stream-prices` | web | 1 por micro-lote |
+| `price_indexes` | `load-context` | web (vista Contexto) | 889 (8 series de índices) |
 
 Convenciones:
 
@@ -158,6 +159,29 @@ Regla derivada en la aplicación (no se guarda): una alerta `PRICE_SPIKE` con un
 | `status` | string | `SUCCEEDED` |
 
 ---
+
+## `price_indexes` — índices de contexto
+
+`_id`: `"<source>|<indicator>|<AAAA-MM-DD>"`, por ejemplo `"BCRP_INEI|PN38705PM|2026-10-01"`.
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `source` | string | `SMARTPRICE` (calculado aquí), `BCRP_INEI` o `QHAWARINA` |
+| `indicator` | string | `gmml_jevons_monthly`, `gmml_jevons_daily`, `PN38705PM` (IPC Lima), `PN38706PM` (IPC sin alimentos y bebidas), `index_all`, `index_food`, `index_verduras`, `index_frutas` |
+| `label` | string | Nombre para mostrar |
+| `frequency` | string | `DAILY` o `MONTHLY` (fecha = primer día del mes) |
+| `date` | Date | Fecha (00:00 UTC) |
+| `value` | double | Valor del índice en su base original |
+| `base_label` | string | Base original (`ene. 2024 = 100`, `dic. 2021 = 100`, `10-02-2026 = 100`) |
+| `interpolated` | boolean | Qhawarina: el día fue interpolado por la fuente |
+| `source_file` | string | Archivo de origen (o `wholesale_prices` para los índices calculados) |
+
+El índice `SMARTPRICE` es un **índice de Jevons**: 100 × la media geométrica de (precio / precio base)
+de los productos con precio en la fecha base. La aplicación cambia la base de todas las series a
+una fecha común antes de compararlas.
+
+`source_files` también registra los archivos de contexto (`market_code = CONTEXT`, sistema
+`QHAWARINA` o `BCRP_INEI`), con su SHA-256.
 
 ## Archivos intermedios (no versionados)
 

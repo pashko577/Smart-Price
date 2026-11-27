@@ -13,6 +13,7 @@ import pe.smartprice.source.domain.SourceFile;
 public class DataCoverageService implements GetDataCoverageUseCase {
 
     static final int MAX_RUNS = 100;
+    static final String MARKET_CODE = "GMML";
 
     private final SourceFilePort files;
     private final ProcessingRunPort runs;
@@ -25,9 +26,18 @@ public class DataCoverageService implements GetDataCoverageUseCase {
     @Override
     public DataCoverage coverage() {
         return DataCoverage.of(files.findAll().stream()
+                .filter(f -> MARKET_CODE.equals(f.marketCode()))
                 .sorted(Comparator.comparing(SourceFile::firstDate,
                         Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList());
+    }
+
+    @Override
+    public List<SourceFile> contextFiles() {
+        return files.findAll().stream()
+                .filter(f -> !MARKET_CODE.equals(f.marketCode()))
+                .sorted(Comparator.comparing(SourceFile::fileName))
+                .toList();
     }
 
     @Override

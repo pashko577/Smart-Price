@@ -9,6 +9,9 @@ import pe.smartprice.alert.application.service.AlertService;
 import pe.smartprice.analytics.application.port.in.GetProductAnalyticsUseCase;
 import pe.smartprice.analytics.application.port.out.AnalyticsPort;
 import pe.smartprice.analytics.application.service.ProductAnalyticsService;
+import pe.smartprice.context.application.port.in.GetPriceContextUseCase;
+import pe.smartprice.context.application.port.out.IndexSeriesPort;
+import pe.smartprice.context.application.service.PriceContextService;
 import pe.smartprice.price.application.port.in.GetPriceHistoryUseCase;
 import pe.smartprice.price.application.port.out.PriceHistoryPort;
 import pe.smartprice.price.application.service.PriceHistoryService;
@@ -42,5 +45,10 @@ public class UseCaseConfig {
     @Bean
     GetDataCoverageUseCase getDataCoverageUseCase(SourceFilePort files, ProcessingRunPort runs) {
         return new DataCoverageService(files, runs);
+    }
+
+    @Bean
+    GetPriceContextUseCase getPriceContextUseCase(IndexSeriesPort port) {
+        return new PriceContextService(port);
     }
 }

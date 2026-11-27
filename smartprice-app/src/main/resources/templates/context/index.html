@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Contexto')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main>
+    <div class="page-head">
+        <h1>Contexto: mayorista, supermercados e inflación</h1>
+        <p>
+            ¿Los precios del mercado mayorista se mueven igual que la inflación general y que los supermercados?
+            Todas las series se expresan como índice con la misma base (= 100) para compararlas en un solo eje.
+        </p>
+    </div>
+
+    <!-- ===================== Mayorista vs IPC ===================== -->
+    <section class="card" aria-label="Mercado mayorista frente a la inflación">
+        <h2 th:text="${inflation.title()}">Mercado mayorista frente a la inflación</h2>
+        <p class="sub" th:text="${inflation.description()}">descripción</p>
+        <div class="legend" aria-hidden="true">
+            <span th:each="r, it : ${inflationRows}"><i th:classappend="'swatch-' + ${it.count}"></i><span th:text="${r.label()}">serie</span></span>
+        </div>
+        <div id="chart-inflation" class="chart chart-context" role="img"
+             aria-label="Índices mensuales del mercado mayorista y del IPC de Lima, base enero 2024 igual a 100"></div>
+
+        <div class="table-wrap" style="margin-top:8px">
+            <table>
+                <thead>
+                <tr>
+                    <th>Serie</th>
+                    <th>Fuente</th>
+                    <th class="num" th:text="'Índice en ' + ${@fmt.monthYear(inflation.commonEnd())}">Índice</th>
+                    <th class="num" th:text="'Variación desde ' + ${@fmt.monthYear(inflation.base())}">Variación</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="r, it : ${inflationRows}">
+                    <td><span class="series-key" th:classappend="'swatch-' + ${it.count}"></span><span th:text="${r.label()}">serie</span></td>
+                    <td class="muted" th:text="${r.source()}">fuente</td>
+                    <td class="num" th:text="${@fmt.num(r.lastValue(), 1)}">140.0</td>
+                    <td class="num"><span class="delta" th:classappend="${@fmt.tone(r.changePct())}"
+                                          th:text="${@fmt.pct(r.changePct())}">+40 %</span></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="muted" style="font-size:13px;margin:10px 0 0">
+            Variaciones calculadas hasta el último mes con dato en todas las series
+            (<span th:text="${@fmt.monthYear(inflation.commonEnd())}">oct. 2026</span>). El índice mayorista es de Jevons
+            (media geométrica de los cambios de precio de los 59 productos), la misma fórmula que usa Qhawarina.
+        </p>
+    </section>
+
+    <!-- ===================== Mayorista vs supermercados ===================== -->
+    <section class="card" style="margin-top:16px" aria-label="Mercado mayorista frente a supermercados">
+        <h2 th:text="${supermarkets.title()}">Mercado mayorista frente a supermercados</h2>
+        <p class="sub" th:text="${supermarkets.description()}">descripción</p>
+        <div class="legend" aria-hidden="true">
+            <span th:each="r, it : ${supermarketRows}"><i th:classappend="'swatch-' + ${it.count}"></i><span th:text="${r.label()}">serie</span></span>
+        </div>
+        <div id="chart-supermarkets" class="chart chart-context" role="img"
+             aria-label="Índices diarios del mercado mayorista y de supermercados, base 10 de febrero de 2026 igual a 100"></div>
+
+        <div class="table-wrap" style="margin-top:8px">
+            <table>
+                <thead>
+                <tr>
+                    <th>Serie</th>
+                    <th>Fuente</th>
+                    <th class="num" th:text="'Índice al ' + ${@fmt.date(supermarkets.commonEnd())}">Índice</th>
+                    <th class="num" th:text="'Variación desde ' + ${@fmt.date(supermarkets.base())}">Variación</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="r, it : ${supermarketRows}">
+                    <td><span class="series-key" th:classappend="'swatch-' + ${it.count}"></span><span th:text="${r.label()}">serie</span></td>
+                    <td class="muted" th:text="${r.source()}">fuente</td>
+                    <td class="num" th:text="${@fmt.num(r.lastValue(), 1)}">111.5</td>
+                    <td class="num"><span class="delta" th:classappend="${@fmt.tone(r.changePct())}"
+                                          th:text="${@fmt.pct(r.changePct())}">+11 %</span></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card" style="margin-top:16px">
+        <h2>Cómo leer esta comparación</h2>
+        <ul style="margin:8px 0 0;padding-left:20px;line-height:1.7">
+            <li>El índice <strong>mayorista</strong> mide 59 productos frescos (hortalizas, tubérculos, frutas) del Gran Mercado
+                Mayorista; reacciona rápido a la oferta (clima, cosechas, volumen ingresado).</li>
+            <li>El <strong>IPC</strong> mide toda la canasta del consumidor de Lima (alimentos, vivienda, transporte, servicios…).
+                La diferencia entre el IPC total y el IPC sin alimentos muestra cuánto empujan los alimentos la inflación.</li>
+            <li>El índice de <strong>supermercados</strong> (Qhawarina) mide unos 38 000 productos de Plaza Vea, Metro y Wong;
+                los precios al consumidor tardan más en reaccionar que los mayoristas.</li>
+            <li>No son la misma canasta: la comparación muestra <em>tendencias</em>, no diferencias de nivel de precios.</li>
+        </ul>
+    </section>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+<script th:src="@{/js/vendor/echarts-5.6.0.min.js}"></script>
+<script th:src="@{/js/context-charts.js}"></script>
+<script th:inline="javascript">
+    var inflationUrl = /*[[@{/api/context/inflation}]]*/ "/api/context/inflation";
+    var supermarketsUrl = /*[[@{/api/context/supermarkets}]]*/ "/api/context/supermarkets";
+    SmartPriceContext.init("chart-inflation", inflationUrl, "month");
+    SmartPriceContext.init("chart-supermarkets", supermarketsUrl, "day");
+</script>
+</body>
+</html>

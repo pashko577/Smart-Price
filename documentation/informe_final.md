@@ -33,8 +33,10 @@ Resultado:
 - **Procesamiento Streaming** con Spark Structured Streaming: cada boletín diario se procesa al
   llegar, sin duplicar datos, con validación cruzada automática y alertas calculadas con las mismas
   reglas que el Batch.
-- **Aplicación web** con arquitectura hexagonal, cuatro vistas y gráficos interactivos.
-- **20 pruebas automatizadas** y varias validaciones con datos reales. Destaca una: los precios de
+- **Contexto:** un índice del mercado mayorista comparado con el IPC de Lima (INEI) y con el índice
+  de supermercados de Qhawarina.
+- **Aplicación web** con arquitectura hexagonal, cinco vistas y gráficos interactivos.
+- **24 pruebas automatizadas** y varias validaciones con datos reales. Destaca una: los precios de
   SISAP y del boletín PDF coinciden en los 54 productos comunes.
 
 El hallazgo principal ilustra el valor del sistema. Entre julio y noviembre de 2026 el precio de la
@@ -71,6 +73,7 @@ Mayorista de Lima, para generar indicadores que apoyen decisiones de compra.
 | Calcular indicadores, variaciones y tendencias | Cumplido |
 | Demostración funcional de consulta y visualización | Cumplido: aplicación web con 4 vistas y API |
 | Evaluar calidad de datos, trazabilidad y rendimiento | Cumplido: validación cruzada, registro de ejecuciones y pruebas |
+| Contextualizar con índices de supermercados e inflación | Cumplido: índice GMML frente al IPC (INEI) y a Qhawarina (sección 6.6) |
 
 ## 3. Metodología
 
@@ -93,8 +96,8 @@ origen, una fecha y una transformación documentada.
 | Fuente | Hallazgo | Decisión |
 |---|---|---|
 | PNDA — *Datero Agrario* (MIDAGRI) | **No contiene precios**: registra el uso del servicio de consultas por celular. Último archivo: mayo de 2020 | Descartada |
-| Qhawarina (índice de supermercados) | Solo índices agregados; licencia CC BY 4.0; **sin actualizar desde el 13-06-2026** | Contexto histórico (pendiente de integrar) |
-| INEI (IPC) | Portales activos | Contexto macro (pendiente de integrar) |
+| Qhawarina (índice de supermercados) | Solo índices agregados; licencia CC BY 4.0; **sin actualizar desde el 13-06-2026** | Contexto (feb.–jun. 2026) |
+| INEI (IPC), vía la API pública del BCRP | IPC de Lima Metropolitana, base dic. 2021 = 100, hasta oct. 2026. No hay un índice de "alimentos y bebidas" con esa base; sí "IPC total" y "IPC sin alimentos y bebidas" | Contexto macro |
 | Catálogos de supermercados | Sin API pública autorizada | Fuera del alcance |
 | **SISAP (MIDAGRI)** | Exporta precio por kg y volumen de todos los días. Certificado TLS vencido: descarga manual | **Fuente histórica principal** |
 | **Boletín diario del GMML (MIDAGRI, PDF)** | Publicación diaria al día; PDF con texto extraíble | **Fuente de datos nuevos y de validación** |
@@ -237,7 +240,8 @@ El *checkpoint* de Spark garantiza que cada archivo se procese una sola vez, aun
 | **Productos** | Catálogo de 59 productos con buscador |
 | **Detalle de producto** | Precio y volumen diarios en gráficos enlazados, rango histórico, tabla mensual y alertas del producto |
 | **Alertas** | Filtros por severidad, tipo, producto y periodo |
-| **Fuentes** | Archivos de origen con su hash, ejecuciones del Streaming y notas de calidad de datos |
+| **Contexto** | Índice mayorista frente al IPC de Lima y frente a los supermercados, con base común = 100 |
+| **Fuentes** | Archivos de origen con su hash, archivos de contexto, ejecuciones del Streaming y notas de calidad de datos |
 
 **Arquitectura hexagonal.** Cada funcionalidad (`price`, `analytics`, `alert`, `source`) tiene
 `domain`, `application` (puertos de entrada y salida y servicios) e `infrastructure` (controladores
@@ -250,6 +254,20 @@ el 30 % frente a su promedio de 30 días se marca como explicada por menor abast
 **Visualización.** El precio y el volumen se muestran en **dos gráficos que comparten el eje de
 fechas, el cursor y el zoom**, en lugar de un gráfico con dos ejes Y, que suele llevar a lecturas
 erróneas. La paleta se validó para personas con daltonismo en modo claro y oscuro.
+
+### 6.6. Contexto: mayorista, supermercados e inflación (`load-context`)
+
+Spark carga los archivos originales de Qhawarina (JSON) y del BCRP (JSON del IPC del INEI) y calcula,
+a partir de `wholesale_prices`, un **índice del mercado mayorista con la fórmula de Jevons**: la media
+geométrica de los cambios de precio de los 59 productos. Es la misma fórmula que usa Qhawarina. Se
+calcula en versión mensual (base ene. 2024 = 100) y diaria (base 10-02-2026 = 100). Todo se guarda en
+la colección `price_indexes`, y cada archivo de origen queda en `source_files` con su SHA-256.
+
+La vista **Contexto** compara las series con una **base común = 100**, en un solo eje (todas son
+índices), y recorta cada comparación a la última fecha con dato en todas las series. Así se compara
+siempre el mismo periodo.
+
+El índice GMML se comprobó con una réplica independiente del cálculo: 8 de 8 valores coinciden.
 
 ## 7. Resultados y hallazgos
 
@@ -286,7 +304,22 @@ baratos. En ese periodo hubo 37 alertas, 12 de ellas de severidad alta.
 - Mayores subidas: apio (+113 %), yuca amarilla (+100 %) y zanahoria (+86 %).
 - Mayores bajadas: ajo criollo (−54 %), ajo morado (−47 %) y kion (−38 %).
 
-### 7.4. Calidad de datos
+### 7.4. Mercado mayorista frente a la inflación y los supermercados
+
+| Comparación | Mercado mayorista (GMML) | Referencia |
+|---|---|---|
+| Ene. 2024 → oct. 2026 (mensual) | **+39.8 %** | IPC Lima +8.5 %; IPC sin alimentos y bebidas +8.7 % |
+| 10-02-2026 → 13-06-2026 (diario) | **+11.5 %** | Supermercados, alimentos −1.3 %; verduras 0.0 % |
+
+- Los precios mayoristas de productos frescos se movieron mucho más que la inflación general.
+- En el IPC, el total y el "sin alimentos" crecieron casi igual. En la canasta completa del
+  consumidor, los alimentos no fueron los que empujaron la inflación de este periodo.
+- Entre febrero y junio de 2026, el mayorista subió un 11.5 % mientras los supermercados se
+  mantuvieron estables. Los precios al consumidor se ajustan más lento y amortiguan la volatilidad
+  mayorista.
+- No son la misma canasta: la comparación muestra tendencias, no niveles de precio.
+
+### 7.5. Calidad de datos
 
 - En SISAP, **"Papa Blanca" tiene el mismo precio que "Papa Yungay" en 1 059 de 1 061 días**, pero
   un volumen distinto. Probablemente es una categoría agregada que toma la Yungay como referencia.
@@ -297,7 +330,8 @@ baratos. En ese periodo hubo 37 alertas, 12 de ellas de severidad alta.
 
 | Verificación | Resultado |
 |---|---|
-| Pruebas unitarias | **20 pruebas**, todas correctas: lectores SISAP y PDF (8) y núcleo de la aplicación con puertos falsos, sin MongoDB ni Spring (12) |
+| Pruebas unitarias | **24 pruebas**, todas correctas: lectores SISAP y PDF (8) y núcleo de la aplicación con puertos falsos, sin MongoDB ni Spring (16) |
+| Índice mayorista de Jevons | 8 de 8 valores iguales a una réplica independiente del cálculo |
 | SISAP vs boletín PDF (06-11-2026) | 54 de 54 productos comunes coinciden |
 | Migración de Python a Java | Lector SISAP: 62 599 filas idénticas. Extractor PDF: 72 productos idénticos en sus 13 campos. Mismas variaciones anuales con Spark |
 | Idempotencia | 3 cargas seguidas → 62 599 documentos; 2 ejecuciones del Batch → mismos conteos |
@@ -305,26 +339,30 @@ baratos. En ese periodo hubo 37 alertas, 12 de ellas de severidad alta.
 | Streaming A: boletín con datos ya cargados | 0 duplicados; 54 de 54 precios coinciden |
 | Streaming B: día quitado temporalmente y reconstruido desde el PDF | Misma alerta que el Batch (Zanahoria +33.7 %, media). Después se restauraron los datos |
 | Streaming C: modo continuo | Boletín detectado y procesado en unos 9 segundos |
-| Aplicación web | Las 4 vistas y los 59 detalles de producto responden sin errores. Las páginas tardan entre 0.1 y 0.6 s |
-| Revisión visual | Capturas en modo claro y oscuro. Sirvieron para corregir cuatro defectos que las pruebas no detectaban |
+| Aplicación web | Las 5 vistas y los 59 detalles de producto responden sin errores. Las páginas tardan entre 0.1 y 0.6 s |
+| Revisión visual | Capturas en modo claro y oscuro. Sirvieron para corregir seis defectos que las pruebas no detectaban (entre ellos, etiquetas superpuestas y ventanas de comparación desiguales) |
 
 ## 9. Limitaciones
 
 1. **Precios mayoristas, no minoristas.** No representan el precio que paga el consumidor final.
 2. **Un solo mercado.** Solo el Gran Mercado Mayorista de Lima, con 59 productos.
 3. **Descarga manual de SISAP.** El certificado TLS vencido impide automatizar la descarga de forma segura.
-4. **Sin datos de supermercados.** No existe una fuente pública autorizada con precios por producto.
-5. **Streaming sin fechas nuevas todavía.** El histórico llega hasta el día del informe; los datos
+4. **Supermercados solo como índice.** No existe una fuente pública autorizada con precios por
+   producto, y el índice de Qhawarina no se actualiza desde el 13-06-2026.
+5. **IPC sin un subíndice de alimentos.** La API del BCRP no publica "alimentos y bebidas" con la
+   base actual. Se usa la comparación entre el IPC total y el IPC sin alimentos.
+6. **Streaming sin fechas nuevas todavía.** El histórico llega hasta el día del informe; los datos
    realmente nuevos empiezan con el boletín del 27-11-2026.
-6. **Spark está sobredimensionado para este volumen.** 62 599 filas caben en memoria. Spark se
+7. **Spark está sobredimensionado para este volumen.** 62 599 filas caben en memoria. Spark se
    justifica por el Streaming, por usar un mismo pipeline para el histórico y los datos nuevos, y
    porque escala sin cambiar el código.
-7. **Formato del PDF.** El extractor se probó con un formato de boletín. Si MIDAGRI cambia el
+8. **Formato del PDF.** El extractor se probó con un formato de boletín. Si MIDAGRI cambia el
    diseño, habrá que ajustarlo.
 
 ## 10. Trabajo futuro
 
-- Integrar como contexto el índice de supermercados de Qhawarina y el IPC del INEI.
+- Actualizar el contexto de supermercados si Qhawarina retoma la publicación, y añadir el subíndice
+  de alimentos del IPC desde el INEI.
 - Añadir otros mercados de SISAP (Mercado de Frutas N.º 2, Mercado de Productores, otras ciudades).
 - Descargar automáticamente los boletines diarios desde gob.pe.
 - Canasta de compra y comparación con una muestra de precios minoristas.
@@ -343,6 +381,8 @@ baratos. En ese periodo hubo 37 alertas, 12 de ellas de severidad alta.
    cada parte se prueba y se despliega por separado.
 5. **El sistema detecta patrones con sentido económico**, como la relación inversa entre
    abastecimiento y precio. Esa información sirve para anticipar decisiones de compra.
+6. **El mercado mayorista adelanta y amplifica lo que el consumidor ve después.** Subió un 39.8 %
+   frente al 8.5 % del IPC, y un 11.5 % mientras los supermercados se mantenían estables.
 
 ---
 
@@ -353,6 +393,7 @@ baratos. En ese periodo hubo 37 alertas, 12 de ellas de severidad alta.
 .\jobs.ps1 sisap-to-csv          # SISAP -> CSV
 .\jobs.ps1 load-sisap            # CSV -> MongoDB (Spark)
 .\jobs.ps1 batch-analytics       # indicadores y alertas (Spark)
+.\jobs.ps1 load-context          # Qhawarina, IPC e índice mayorista (Spark)
 .\jobs.ps1 ingest-pdf <pdf>      # boletín -> carpeta del Streaming
 .\jobs.ps1 stream-prices         # Spark Structured Streaming
 .\app.ps1                        # web en http://localhost:8085
@@ -365,6 +406,7 @@ baratos. En ese periodo hubo 37 alertas, 12 de ellas de severidad alta.
 3. SISAP — Sistema de Abastecimiento y Precios: https://sistemas.midagri.gob.pe/sisap/portal2/mayorista/
 4. Qhawarina — Datos: https://qhawarina.pe/datos
 5. INEI — Índices de precios: https://www.inei.gob.pe/estadisticas/indice-tematico/price-indexes/
+5b. BCRP — API de series estadísticas (IPC Lima, PN38705PM y PN38706PM): https://estadisticas.bcrp.gob.pe/estadisticas/series/
 6. Apache Spark 3.5.6: https://spark.apache.org/docs/3.5.6/
 7. Spark Structured Streaming: https://spark.apache.org/docs/3.5.6/structured-streaming-programming-guide.html
 8. MongoDB Spark Connector: https://www.mongodb.com/docs/spark-connector/v10.x/

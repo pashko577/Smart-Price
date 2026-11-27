@@ -779,6 +779,7 @@ Nombre propuesto: `smartprice_db`
   `price_analytics`      `PRICE_MONTHLY`, `PRODUCT_SUMMARY`, `ALERT_BASELINE`  `batch-analytics`
   `price_alerts`         Variaciones diarias atípicas (IQR)                    `batch-analytics`, `stream-prices`
   `processing_logs`      Ejecuciones del Streaming y validación cruzada        `stream-prices`
+  `price_indexes`        Índices de contexto: Qhawarina, IPC y GMML (Jevons)   `load-context`
 
 El esquema completo de cada colección está en `documentation/diccionario_datos.md`.
 Las colecciones del diseño inicial para supermercados (`products`, `stores`,
@@ -1554,7 +1555,8 @@ disponibilidad y calidad de las fuentes.
           histórico e índices
   4       Spark Batch: tendencias mensuales,        Hecho (26-11-2026)
           resumen por producto, alertas IQR
-  5       Qhawarina e INEI como contexto                        1 día
+  5       Contexto: Qhawarina, IPC (INEI vía BCRP)  Hecho (26-11-2026)
+          e índice mayorista de Jevons
   6       Extractor PDF y Structured Streaming      Hecho (26-11-2026)
           con boletines nuevos y alertas
   7       Spring Boot (4 módulos hexagonales) y     Hecho (26-11-2026)
@@ -1563,8 +1565,8 @@ disponibilidad y calidad de las fuentes.
   --      Extensiones opcionales: muestra de                   3--4 días
           supermercados y canasta
 
-Duración restante del núcleo: **3 a 5 días** (Qhawarina/INEI, pruebas e
-informe). Con las extensiones, de 6 a 9 días.
+El núcleo del MVP está **completo**. Quedan las extensiones opcionales
+(muestra de supermercados y canasta, de 3 a 4 días) y la preparación de la presentación.
 
 El riesgo principal ya no es la obtención del histórico, porque ya está
 descargado. Ahora es el extractor de PDF para los boletines nuevos: si el

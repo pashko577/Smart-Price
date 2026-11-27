@@ -3,6 +3,7 @@
 Plataforma de inteligencia de precios de alimentos del **Gran Mercado Mayorista de Lima (GMML)**.
 Integra datos oficiales de MIDAGRI, los procesa con **Apache Spark** (Batch y Structured Streaming),
 los guarda en **MongoDB Atlas** y los presenta en una aplicación web **Spring Boot + Thymeleaf**.
+Además, compara el mercado mayorista con el IPC de Lima (INEI) y con un índice de supermercados (Qhawarina).
 
 Todo el proyecto está en **Java 17**.
 
@@ -21,8 +22,8 @@ Todo el proyecto está en **Java 17**.
  SISAP (.xls, histórico) ─┐
                           ├─► smartprice-jobs (Apache Spark, API Java) ──► MongoDB Atlas ──► smartprice-app (Spring Boot)
  Boletín PDF diario ──────┘     · Batch: carga, tendencias, alertas IQR     smartprice_db      · hexagonal: price, analytics,
-                                · Streaming: boletines nuevos                                    alert, source
-                                                                                               · Thymeleaf + ECharts
+                                · Streaming: boletines nuevos                                    alert, source, context
+ Qhawarina + IPC (BCRP) ─────►  · Contexto: índice mayorista (Jevons)                          · Thymeleaf + ECharts
 ```
 
 - **smartprice-jobs**: programa de consola que escribe en MongoDB.
@@ -63,7 +64,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ## Uso rápido
 
 ```powershell
-# 1. Compilar y ejecutar las pruebas (20 pruebas)
+# 1. Compilar y ejecutar las pruebas (24 pruebas)
 .\jobs.ps1 build
 
 # 2. Comprobar la conexión a MongoDB
@@ -74,6 +75,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 .\jobs.ps1 load-sisap          # carga en MongoDB con Spark (no duplica datos)
 .\jobs.ps1 setup-mongo         # índices y resumen
 .\jobs.ps1 batch-analytics     # tendencias, resúmenes y alertas -> MongoDB
+.\jobs.ps1 load-context        # Qhawarina, IPC (INEI vía BCRP) e índice mayorista -> vista Contexto
 
 # 4. Aplicación web -> http://localhost:8085
 .\app.ps1
@@ -100,6 +102,7 @@ Para procesar lo pendiente y terminar (útil en demostraciones): `.\jobs.ps1 str
 | `load-sisap [csv]` | Carga el CSV en `wholesale_prices` y `source_files` (Spark) |
 | `explore-sisap [csv]` | Exploración inicial: variación del precio promedio anual |
 | `batch-analytics [k] [min%]` | Indicadores mensuales, resumen por producto y alertas IQR (por defecto k = 3 y 15 %) |
+| `load-context` | Carga Qhawarina (`data/raw/qhawarina`) y el IPC (`data/raw/bcrp`) y calcula el índice mayorista de Jevons |
 | `extract-pdf <pdf> [carpeta]` | Extrae la tabla de un boletín PDF a CSV |
 | `ingest-pdf <pdf> [...]` | Extrae boletines y los deja en la carpeta del Streaming |
 | `stream-prices [--once]` | Spark Structured Streaming de boletines nuevos |
@@ -115,6 +118,7 @@ Para procesar lo pendiente y terminar (útil en demostraciones): `.\jobs.ps1 str
 ├── jobs.ps1, app.ps1            Scripts de ejecución
 ├── data/raw/sisap/              Exportaciones originales de SISAP (7 archivos)
 ├── data/raw/midagri/gmml_pdf/   Boletines PDF originales
+├── data/raw/qhawarina, bcrp/    Índices de contexto (supermercados e IPC)
 ├── smartprice-jobs/             Apache Spark (Java): sisap, gmml, mongo, analytics, streaming
 ├── smartprice-app/              Spring Boot: price, analytics, alert, source (hexagonal)
 └── documentation/               Informe, guía de presentación y diccionario de datos
@@ -124,3 +128,6 @@ Para procesar lo pendiente y terminar (útil en demostraciones): `.\jobs.ps1 str
 
 MIDAGRI: Sistema de Abastecimiento y Precios (SISAP) y boletines diarios del Gran Mercado Mayorista
 de Lima. La fuente primaria es EMMSA. Son **precios mayoristas promedio**, no precios al consumidor.
+
+Contexto: índice de supermercados de Qhawarina (CC BY 4.0) e IPC de Lima Metropolitana (INEI),
+obtenido de la API pública del BCRP.
