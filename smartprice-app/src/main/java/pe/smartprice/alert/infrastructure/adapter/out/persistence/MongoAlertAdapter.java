@@ -35,6 +35,21 @@ public class MongoAlertAdapter implements AlertPort {
 
     @Override
     public List<PriceAlert> find(String marketCode, AlertFilter f) {
+        Query q = new Query(criteria(marketCode, f))
+                .with(Sort.by(Sort.Order.desc("observed_at"), Sort.Order.desc("change_pct")))
+                .limit(f.limit());
+        return mongo.find(q, Document.class, COLLECTION).stream().map(MongoAlertAdapter::toAlert).toList();
+    }
+
+    @Override
+    public List<PriceAlert> findMatching(String marketCode, AlertFilter f) {
+        Query q = new Query(criteria(marketCode, f))
+                .with(Sort.by(Sort.Order.desc("observed_at"), Sort.Order.desc("change_pct")));
+        return mongo.find(q, Document.class, COLLECTION).stream().map(MongoAlertAdapter::toAlert).toList();
+    }
+
+    /** Criterios de la consulta; "menor abastecimiento" es una regla de dominio y se aplica en el servicio. */
+    static Criteria criteria(String marketCode, AlertFilter f) {
         Criteria c = where("market_code").is(marketCode);
         if (f.minSeverity() != null) {
             List<String> allowed = Arrays.stream(Severity.values())
@@ -47,12 +62,17 @@ public class MongoAlertAdapter implements AlertPort {
         if (f.type() != null) {
             c = c.and("alert_type").is(f.type().name());
         }
-        if (f.from() != null) {
+        if (f.from() != null && f.to() != null) {
+            c = c.and("observed_at").gte(Docs.utc(f.from())).lte(Docs.utc(f.to()));
+        } else if (f.from() != null) {
             c = c.and("observed_at").gte(Docs.utc(f.from()));
+        } else if (f.to() != null) {
+            c = c.and("observed_at").lte(Docs.utc(f.to()));
         }
-        Query q = new Query(c).with(Sort.by(Sort.Order.desc("observed_at"), Sort.Order.desc("change_pct")))
-                .limit(f.limit());
-        return mongo.find(q, Document.class, COLLECTION).stream().map(MongoAlertAdapter::toAlert).toList();
+        if (!f.products().isEmpty() && f.productName() == null) { // un producto exacto manda sobre la lista
+            c = c.and("product_name").in(f.products());
+        }
+        return c;
     }
 
     @Override
@@ -83,6 +103,8 @@ public class MongoAlertAdapter implements AlertPort {
                 Docs.dbl(d, "bounds.lower"),
                 Docs.dbl(d, "bounds.upper"),
                 Docs.dbl(d, "volume.current_t"),
-                Docs.dbl(d, "volume.avg_30d_t"));
+                Docs.dbl(d, "volume.avg_30d_t"),
+                Docs.dbl(d, "bounds.k"),
+                Docs.dbl(d, "bounds.min_abs_change_pct"));
     }
 }

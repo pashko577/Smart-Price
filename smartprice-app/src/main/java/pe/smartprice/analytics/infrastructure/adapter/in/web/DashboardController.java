@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 import pe.smartprice.alert.application.port.in.ListAlertsUseCase;
 import pe.smartprice.analytics.application.port.in.GetProductAnalyticsUseCase;
+import pe.smartprice.analytics.domain.ProductSummary;
 import pe.smartprice.source.application.port.in.GetDataCoverageUseCase;
 
 /** Dashboard de inteligencia de precios. */
@@ -35,7 +36,8 @@ public class DashboardController {
     @GetMapping("/")
     public String dashboard(Model model) {
         var summaries = analytics.summaries();
-        LocalDate lastAlert = alerts.lastAlertDate();
+        // Misma referencia que Alertas, Análisis y la barra lateral: el último día con datos.
+        LocalDate lastAlert = ProductSummary.latestDate(summaries).orElseGet(alerts::lastAlertDate);
 
         model.addAttribute("productCount", summaries.size());
         model.addAttribute("coverage", coverage.coverage());

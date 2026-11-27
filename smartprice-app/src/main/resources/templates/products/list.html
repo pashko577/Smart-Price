@@ -4,18 +4,44 @@
 <body>
 <header th:replace="~{fragments/layout :: header}"></header>
 
-<main>
+<main id="main">
     <div class="page-head">
         <h1>Productos</h1>
-        <p>Último precio promedio mayorista y su variación. Haz clic en un producto para ver su historial.</p>
+        <p>Último precio y su variación · marca hasta 6 para compararlos.</p>
     </div>
 
     <div class="notice error" th:if="${error}" th:text="${error}">Error</div>
 
-    <div class="filters">
+    <div class="filters" id="product-filters">
         <label>Buscar producto
             <input type="search" id="product-search" placeholder="Ej.: papa, tomate…" autocomplete="off">
         </label>
+        <label>Categoría
+            <select id="f-category">
+                <option value="">Todas</option>
+                <option th:each="c : ${categories}" th:value="${c.key()}" th:text="${c.label()}">Papas</option>
+            </select>
+        </label>
+        <label>Situación (30 días)
+            <select id="f-situation">
+                <option value="">Todas</option>
+                <option value="up">Más caros (+5 % o más)</option>
+                <option value="STRONG_RISE">Alza fuerte (+20 % o más)</option>
+                <option value="STABLE">Estables</option>
+                <option value="down">Más baratos (−5 % o más)</option>
+            </select>
+        </label>
+        <label>Ordenar por
+            <select id="f-sort">
+                <option value="name">Nombre (A–Z)</option>
+                <option value="var30-desc">Mayor subida en 30 días</option>
+                <option value="var30-asc">Mayor bajada en 30 días</option>
+                <option value="yoy-desc">Más caro que hace un año</option>
+                <option value="last-desc">Precio más alto</option>
+                <option value="last-asc">Precio más bajo</option>
+            </select>
+        </label>
+        <p class="muted filter-count" id="product-count" aria-live="polite"></p>
     </div>
 
     <section class="card">
@@ -24,18 +50,29 @@
                 <thead>
                 <tr>
                     <th>Producto</th>
+                    <th class="opt">Categoría</th>
                     <th class="num">Último precio</th>
                     <th class="num">Promedio 30 días</th>
                     <th class="num">Var. 30 días</th>
                     <th class="num">Var. anual</th>
-                    <th class="num">Promedio 365 días</th>
-                    <th class="num">Corr. precio-volumen</th>
-                    <th>Último dato</th>
+                    <th class="num opt">Promedio 365 días</th>
+                    <th class="num opt">Corr. precio-volumen</th>
+                    <th class="opt">Último dato</th>
                 </tr>
                 </thead>
                 <tbody>
-                <tr th:each="s : ${summaries}" th:data-name="${#strings.toLowerCase(s.productName())}">
-                    <td><a th:href="@{/product(name=${s.productName()})}" th:text="${s.productName()}">Producto</a></td>
+                <tr th:each="r : ${rows}" th:with="s=${r.summary()}"
+                    th:data-name="${#strings.toLowerCase(s.productName())}"
+                    th:data-category="${r.category().key()}" th:data-sit="${r.situation().name()}"
+                    th:data-var30="${s.varPct30d()}" th:data-yoy="${s.varPctYoy()}" th:data-last="${s.lastPrice()}">
+                    <td class="product-cell">
+                        <label class="cmp" th:title="'Marcar ' + ${s.productName()} + ' para comparar'">
+                            <input type="checkbox" class="cmp-box" th:value="${s.productName()}">
+                            <span class="sr-only" th:text="'Comparar ' + ${s.productName()}">Comparar</span>
+                        </label>
+                        <a th:href="@{/product(name=${s.productName()})}" th:text="${s.productName()}">Producto</a>
+                    </td>
+                    <td class="muted" th:text="${r.category().label()}">Papas</td>
                     <td class="num" th:text="${@fmt.soles(s.lastPrice())}">S/ 3.04</td>
                     <td class="num" th:text="${@fmt.soles(s.avg30d())}">S/ 2.89</td>
                     <td class="num"><span class="delta" th:classappend="${@fmt.tone(s.varPct30d())}"
@@ -49,26 +86,102 @@
                 </tbody>
             </table>
         </div>
-        <p class="muted" id="no-results" hidden>Ningún producto coincide con la búsqueda.</p>
+        <p class="muted" id="no-results" hidden>Ningún producto coincide con los filtros.</p>
     </section>
 </main>
 
+<!-- Barra que aparece al marcar productos: lleva al comparador con los elegidos. -->
+<div class="compare-bar" id="compare-bar" hidden>
+    <span id="compare-count">0 productos</span>
+    <button type="button" class="link-btn" id="compare-clear">Quitar selección</button>
+    <a class="primary-link" id="compare-go" th:href="@{/compare}">Comparar →</a>
+</div>
+
 <footer th:replace="~{fragments/layout :: footer}"></footer>
-<script>
+<script th:inline="javascript">
     (function () {
+        var compareUrl = /*[[@{/compare}]]*/ "/compare";
+        var MAX = 6;
         var input = document.getElementById("product-search");
-        var rows = document.querySelectorAll("#products-table tbody tr");
+        var cat = document.getElementById("f-category");
+        var sit = document.getElementById("f-situation");
+        var sort = document.getElementById("f-sort");
+        var tbody = document.querySelector("#products-table tbody");
+        var rows = Array.prototype.slice.call(tbody.querySelectorAll("tr"));
         var empty = document.getElementById("no-results");
-        input.addEventListener("input", function () {
-            var q = input.value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+        var count = document.getElementById("product-count");
+
+        function norm(s) { return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
+        function num(r, k) { var v = parseFloat(r.dataset[k]); return isNaN(v) ? null : v; }
+
+        // Los filtros se leen de la URL (?category=papas&sort=var30-desc) para poder compartirlos.
+        var params = new URLSearchParams(location.search);
+        if (params.get("category")) cat.value = params.get("category");
+        if (params.get("situation")) sit.value = params.get("situation");
+        if (params.get("sort")) sort.value = params.get("sort");
+        if (params.get("q")) input.value = params.get("q");
+
+        function matchesSituation(r) {
+            var s = sit.value, v = r.dataset.sit;
+            if (!s) return true;
+            if (s === "up") return v === "RISE" || v === "STRONG_RISE";
+            if (s === "down") return v === "FALL" || v === "STRONG_FALL";
+            return v === s;
+        }
+
+        function sorter(a, b) {
+            var key = sort.value;
+            if (key === "name") return a.dataset.name.localeCompare(b.dataset.name, "es");
+            var field = key.split("-")[0], dir = key.split("-")[1] === "desc" ? -1 : 1;
+            var va = num(a, field), vb = num(b, field);
+            if (va === null && vb === null) return 0;
+            if (va === null) return 1;      // sin dato, al final
+            if (vb === null) return -1;
+            return (va - vb) * dir;
+        }
+
+        function apply() {
+            var q = norm(input.value.trim());
             var shown = 0;
-            rows.forEach(function (r) {
-                var name = r.dataset.name.normalize("NFD").replace(/[̀-ͯ]/g, "");
-                var match = name.indexOf(q) !== -1;
-                r.hidden = !match;
-                if (match) shown++;
+            rows.sort(sorter).forEach(function (r) {
+                var ok = norm(r.dataset.name).indexOf(q) !== -1 && (!cat.value || r.dataset.category === cat.value)
+                    && matchesSituation(r);
+                r.hidden = !ok;
+                if (ok) shown++;
+                tbody.appendChild(r);
             });
             empty.hidden = shown !== 0;
+            count.textContent = "Mostrando " + shown + " de " + rows.length + " productos";
+            var p = new URLSearchParams();
+            if (input.value.trim()) p.set("q", input.value.trim());
+            if (cat.value) p.set("category", cat.value);
+            if (sit.value) p.set("situation", sit.value);
+            if (sort.value !== "name") p.set("sort", sort.value);
+            history.replaceState(null, "", location.pathname + (p.toString() ? "?" + p : ""));
+        }
+        input.addEventListener("input", apply);
+        [cat, sit, sort].forEach(function (el) { el.addEventListener("change", apply); });
+        apply();
+
+        // ---------- marcar productos para comparar ----------
+        var bar = document.getElementById("compare-bar");
+        var barCount = document.getElementById("compare-count");
+        var go = document.getElementById("compare-go");
+        var boxes = Array.prototype.slice.call(document.querySelectorAll(".cmp-box"));
+        function selected() { return boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; }); }
+        function updateBar() {
+            var sel = selected();
+            bar.hidden = sel.length === 0;
+            document.body.classList.toggle("has-compare-bar", sel.length > 0);
+            barCount.textContent = sel.length + (sel.length === 1 ? " producto marcado" : " productos marcados")
+                + (sel.length >= MAX ? " (máximo " + MAX + ")" : "");
+            go.href = compareUrl + "?" + sel.map(function (n) { return "products=" + encodeURIComponent(n); }).join("&");
+            boxes.forEach(function (b) { b.disabled = !b.checked && sel.length >= MAX; });
+        }
+        boxes.forEach(function (b) { b.addEventListener("change", updateBar); });
+        document.getElementById("compare-clear").addEventListener("click", function () {
+            boxes.forEach(function (b) { b.checked = false; });
+            updateBar();
         });
     })();
 </script>

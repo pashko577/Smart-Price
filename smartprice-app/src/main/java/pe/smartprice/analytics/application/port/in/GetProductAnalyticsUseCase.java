@@ -19,4 +19,9 @@ public interface GetProductAnalyticsUseCase {
 
     /** Serie mensual de un producto, ordenada por mes ascendente. */
     List<MonthlyPrice> monthly(String productName);
+
+    /** Último día con indicadores calculados: la referencia común de "los últimos 30 días". */
+    default java.util.Optional<java.time.LocalDate> lastDataDate() {
+        return ProductSummary.latestDate(summaries());
+    }
 }

@@ -64,7 +64,7 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ## Uso rápido
 
 ```powershell
-# 1. Compilar y ejecutar las pruebas (24 pruebas)
+# 1. Compilar y ejecutar las pruebas (37 pruebas)
 .\jobs.ps1 build
 
 # 2. Comprobar la conexión a MongoDB
@@ -120,7 +120,7 @@ Para procesar lo pendiente y terminar (útil en demostraciones): `.\jobs.ps1 str
 ├── data/raw/midagri/gmml_pdf/   Boletines PDF originales
 ├── data/raw/qhawarina, bcrp/    Índices de contexto (supermercados e IPC)
 ├── smartprice-jobs/             Apache Spark (Java): sisap, gmml, mongo, analytics, streaming
-├── smartprice-app/              Spring Boot: price, analytics, alert, source (hexagonal)
+├── smartprice-app/              Spring Boot: price, analytics, alert, source, context, insight, compare (hexagonal)
 └── documentation/               Informe, guía de presentación y diccionario de datos
 ```
 

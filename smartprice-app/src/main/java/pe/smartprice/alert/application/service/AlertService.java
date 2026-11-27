@@ -26,7 +26,21 @@ public class AlertService implements ListAlertsUseCase {
 
     @Override
     public List<PriceAlert> list(AlertFilter filter) {
-        return port.find(DEFAULT_MARKET, filter);
+        if (!filter.supplyOnly()) {
+            return port.find(DEFAULT_MARKET, filter);
+        }
+        // "Menor abastecimiento" es una regla de dominio: se filtra aquí y luego se aplica el límite.
+        return port.findMatching(DEFAULT_MARKET, filter).stream().filter(filter::matches).limit(filter.limit()).toList();
+    }
+
+    @Override
+    public AlertStats stats(AlertFilter filter, LocalDate since) {
+        AlertFilter all = filter.forStats();
+        List<PriceAlert> alerts = port.findMatching(DEFAULT_MARKET, all).stream().filter(all::matches).toList();
+        return new AlertStats(since, alerts.size(),
+                count(alerts, Severity.HIGH), count(alerts, Severity.MEDIUM), count(alerts, Severity.LOW),
+                alerts.stream().filter(a -> a.type() == AlertType.PRICE_SPIKE).count(),
+                alerts.stream().filter(a -> a.type() == AlertType.PRICE_DROP).count());
     }
 
     @Override

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<!-- Página de error de Spring Boot (BasicErrorController la usa para cualquier error de una página HTML). -->
+<head th:replace="~{fragments/layout :: head('Error')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main id="main">
+    <div class="page-head">
+        <p class="eyebrow" th:text="'Error ' + ${status}">Error 500</p>
+        <h1 th:text="${status == 404} ? 'No encontramos esa página' : 'Algo no salió bien'">Algo no salió bien</h1>
+        <p class="lead" th:if="${status == 404}">La dirección no existe. Usa el menú.</p>
+        <p class="lead" th:unless="${status == 404}">
+            Lo más probable: <strong>MongoDB Atlas no responde</strong>. Al volver la conexión, recarga la página.
+        </p>
+    </div>
+    <section class="card">
+        <h2>Qué revisar</h2>
+        <ul class="help-list">
+            <li>Internet y la IP autorizada en Atlas (<em>Network Access</em>).</li>
+            <li><code>MONGODB_URI</code> en el <code>.env</code> (<code>.\jobs.ps1 check-mongo</code>).</li>
+            <li>Datos cargados (<code>load-sisap</code> y <code>batch-analytics</code>).</li>
+        </ul>
+        <p class="muted" style="font-size:13px;margin:14px 0 0">
+            Ruta: <code th:text="${path}">/</code> ·
+            <span th:text="${error}">Internal Server Error</span>
+        </p>
+        <p style="margin:14px 0 0"><a th:href="@{/}">← Volver al dashboard</a></p>
+    </section>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

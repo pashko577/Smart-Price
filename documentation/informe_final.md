@@ -35,8 +35,12 @@ Resultado:
   reglas que el Batch.
 - **Contexto:** un índice del mercado mayorista comparado con el IPC de Lima (INEI) y con el índice
   de supermercados de Qhawarina.
-- **Aplicación web** con arquitectura hexagonal, cinco vistas y gráficos interactivos.
-- **24 pruebas automatizadas** y varias validaciones con datos reales. Destaca una: los precios de
+- **Aplicación web** con arquitectura hexagonal, barra lateral de navegación, ocho vistas más el
+  detalle de cada producto, gráficos interactivos y un **análisis automático** que redacta la lectura
+  del mercado y explica cómo reaccionó el sistema ante cada alerta.
+- Un **comparador de precios** (hasta 6 productos, periodo, agrupación, índice base 100, frente al año
+  anterior, descarga en CSV) y filtros por categoría en Productos y Alertas.
+- **37 pruebas automatizadas** y varias validaciones con datos reales. Destaca una: los precios de
   SISAP y del boletín PDF coinciden en los 54 productos comunes.
 
 El hallazgo principal ilustra el valor del sistema. Entre julio y noviembre de 2026 el precio de la
@@ -71,7 +75,7 @@ Mayorista de Lima, para generar indicadores que apoyen decisiones de compra.
 | Pipeline Batch para el histórico | Cumplido: indicadores mensuales, resúmenes y alertas IQR |
 | Pipeline Structured Streaming para datos nuevos | Cumplido y probado con un boletín real |
 | Calcular indicadores, variaciones y tendencias | Cumplido |
-| Demostración funcional de consulta y visualización | Cumplido: aplicación web con 4 vistas y API |
+| Demostración funcional de consulta y visualización | Cumplido: aplicación web con 8 vistas, comparador de precios, análisis automático y API |
 | Evaluar calidad de datos, trazabilidad y rendimiento | Cumplido: validación cruzada, registro de ejecuciones y pruebas |
 | Contextualizar con índices de supermercados e inflación | Cumplido: índice GMML frente al IPC (INEI) y a Qhawarina (sección 6.6) |
 
@@ -170,8 +174,8 @@ volumen. El sistema de Streaming repite esta comparación de forma automática c
 
 ## 6. Implementación
 
-El módulo **`smartprice-jobs`** tiene 19 clases y unas 1 700 líneas. El módulo **`smartprice-app`**
-tiene 41 clases, unas 1 500 líneas y 6 plantillas.
+El módulo **`smartprice-jobs`** tiene 20 clases y unas 1 950 líneas. El módulo **`smartprice-app`**
+tiene 72 clases, unas 4 100 líneas y 11 plantillas.
 
 ### 6.1. Ingestión
 
@@ -234,19 +238,48 @@ El *checkpoint* de Spark garantiza que cada archivo se procese una sola vez, aun
 
 ### 6.5. Aplicación web (`smartprice-app`)
 
+La navegación es una **barra lateral** agrupada en *Monitoreo*, *Análisis* y *Sistema*. Muestra la
+fecha de los datos, la cantidad de alertas altas de los últimos 30 días y el estado de la conexión con
+MongoDB. Se puede contraer a solo iconos (el estado se recuerda) y en el móvil es un panel deslizable.
+La barra lateral es negra y el contenido claro (el tema oscuro sigue disponible con un botón), con un
+logo propio: una etiqueta de precio con una tendencia al alza. Los textos son cortos: cada vista muestra
+los datos y deja las explicaciones en secciones plegables ("¿Qué significa cada dato?").
+
 | Vista | Contenido |
 |---|---|
 | **Dashboard** | Indicadores generales, mayores subidas y bajadas de 30 días, alertas recientes con la etiqueta "Menor abastecimiento" |
-| **Productos** | Catálogo de 59 productos con buscador |
-| **Detalle de producto** | Precio y volumen diarios en gráficos enlazados, rango histórico, tabla mensual y alertas del producto |
-| **Alertas** | Filtros por severidad, tipo, producto y periodo |
+| **Alertas** | Filtros por periodo (rápido o fechas exactas), severidad, tipo, categoría, producto y “solo menor abastecimiento”; los indicadores cuentan con los mismos filtros |
+| **Comparar precios** | Hasta 6 productos o un grupo listo (canasta básica, mayores subidas y bajadas, cada categoría); periodo, agrupación por día, semana o mes, y medida en soles, índice base 100 o volumen. Gráfico de líneas, ranking de variaciones, comparación con el mismo periodo del año anterior, tabla ordenable con mínimo, máximo, volatilidad y correlación, lectura automática, descarga en CSV y enlace para compartir |
+| **Análisis del mercado** | "Lo más importante" en puntos clave, distribución de las variaciones, productos a vigilar, cómo reaccionó el sistema ante cada alerta (paso a paso) y diagnóstico de los 59 productos con filtros |
+| **Productos** | Catálogo de 59 productos con buscador, filtros por categoría y situación, orden por variación o precio, y casillas para comparar los marcados |
+| **Detalle de producto** | Diagnóstico automático, precio y volumen diarios en gráficos enlazados, rango histórico, tabla mensual y alertas del producto |
 | **Contexto** | Índice mayorista frente al IPC de Lima y frente a los supermercados, con base común = 100 |
+| **Cómo funciona** | Flujo del dato a la pantalla, qué hace el sistema ante cada evento, una alerta real calculada paso a paso, glosario de indicadores y parámetros vigentes |
 | **Fuentes** | Archivos de origen con su hash, archivos de contexto, ejecuciones del Streaming y notas de calidad de datos |
 
-**Arquitectura hexagonal.** Cada funcionalidad (`price`, `analytics`, `alert`, `source`) tiene
-`domain`, `application` (puertos de entrada y salida y servicios) e `infrastructure` (controladores
-y adaptadores de MongoDB). Los servicios no llevan anotaciones de Spring: se ensamblan en una clase
-de configuración.
+Si MongoDB no responde, una **página de error** explica qué revisar y la barra lateral muestra
+"Sin conexión"; al volver la conexión, todo funciona sin reiniciar.
+
+**Diseño adaptable y desplazamiento.**
+- Las rejillas se ajustan al ancho real del contenido (*container queries*), así funcionan igual con la
+  barra lateral abierta, contraída o en el móvil.
+- En pantallas angostas cada fila de tabla se vuelve una tarjeta con etiquetas, y los datos secundarios
+  se omiten. En pantallas medianas la tabla se desplaza de lado, con una sombra que lo avisa, y la
+  primera columna (el producto o la fecha) queda fija para no perder de vista a qué fila pertenece cada dato.
+- En el móvil los controles táctiles miden al menos 32 px de alto (casillas, botones para quitar
+  productos del comparador, enlaces), y las etiquetas largas se parten en vez de salirse de la tarjeta.
+- Las tablas largas (59 productos, 50 alertas) tienen desplazamiento propio con el encabezado fijo.
+- Las páginas largas tienen un índice fijo que marca la sección que se está leyendo, desplazamiento
+  suave (desactivado si la persona prefiere menos movimiento) y un botón "Volver arriba".
+- Los importes y porcentajes no se parten entre líneas (espacio duro en "S/ 3.06" y "55 %").
+- El CSS y el JavaScript se sirven con una huella de contenido en el nombre (`app-<hash>.css`):
+  tras cada cambio el navegador descarga la versión nueva y, mientras tanto, usa su caché.
+
+**Arquitectura hexagonal.** Cada funcionalidad (`price`, `analytics`, `alert`, `source`, `context`,
+`insight`, `compare`) tiene `domain`, `application` (puertos de entrada y salida y servicios) e `infrastructure`
+(controladores y adaptadores de MongoDB). Los servicios no llevan anotaciones de Spring: se ensamblan
+en una clase de configuración. El módulo `insight` no lee MongoDB: compone los casos de uso de los
+demás módulos a través de sus puertos de entrada.
 
 Ejemplo de **regla de dominio**: una subida de precio acompañada de una caída del volumen de al menos
 el 30 % frente a su promedio de 30 días se marca como explicada por menor abastecimiento.
@@ -268,6 +301,32 @@ La vista **Contexto** compara las series con una **base común = 100**, en un so
 siempre el mismo periodo.
 
 El índice GMML se comprobó con una réplica independiente del cálculo: 8 de 8 valores coinciden.
+
+### 6.7. Análisis automático y reacción del sistema (módulo `insight`)
+
+La vista **Análisis del mercado** resume los últimos 30 días en puntos clave cortos ("Canasta: +13.8 % en 30 días"). Usa reglas fijas
+(los mismos datos producen siempre el mismo texto) y solo cifras que ya calculó Spark:
+
+| Pieza | Regla |
+|---|---|
+| **Situación** de cada producto | Variación de 30 días: alza fuerte ≥ +20 %, alza ≥ +5 %, estable entre −5 % y +5 %, baja ≤ −5 %, baja fuerte ≤ −20 % |
+| **Fase del mercado** | Variación de la canasta (media geométrica de las variaciones, como Jevons): en alza ≥ +5 %, a la baja ≤ −5 % |
+| **Qué vigilar** | Alza fuerte con alertas altas recientes o cerca del máximo histórico (80 % superior de su rango desde 2024) |
+| **Diagnóstico** | Nivel frente a su historial, frente a hace un año, tendencia del volumen, relación precio-volumen y alertas recientes |
+| **Reacción del sistema** | Para cada alerta reciente reconstruye la cuenta de Spark: variación, rango normal (Q1, Q3, IQR), distancia al límite → severidad, y volumen → "Menor abastecimiento" |
+| **Calidad de datos** | Productos con exactamente los mismos indicadores se señalan como posible categoría agregada (Papa Blanca y Papa Yungay) |
+
+El IQR no se guarda, pero se deduce de los límites: `upper − lower = IQR · (1 + 2k)`. Con la alerta de
+la zanahoria del 23-11-2026 se obtiene una distancia de 5.3 IQR, que es severidad alta, igual que la que
+asignó Spark.
+
+La vista **Cómo funciona** explica qué hace el sistema ante cada evento (boletín nuevo, día repetido,
+producto fuera del catálogo, variación atípica, caída del volumen, MongoDB sin conexión), un caso real
+paso a paso, el glosario de indicadores y los parámetros. Los umbrales salen de las mismas constantes
+que usa el código, así la explicación no se desincroniza.
+
+Todas las vistas cuentan "los últimos 30 días" desde el **último día con datos**, para que el
+Dashboard, Alertas, Análisis y la barra lateral muestren las mismas cifras.
 
 ## 7. Resultados y hallazgos
 
@@ -330,7 +389,7 @@ baratos. En ese periodo hubo 37 alertas, 12 de ellas de severidad alta.
 
 | Verificación | Resultado |
 |---|---|
-| Pruebas unitarias | **24 pruebas**, todas correctas: lectores SISAP y PDF (8) y núcleo de la aplicación con puertos falsos, sin MongoDB ni Spring (16) |
+| Pruebas unitarias | **37 pruebas**, todas correctas: lectores SISAP y PDF (8), núcleo de la aplicación con puertos falsos, sin MongoDB ni Spring (16), análisis automático (7), comparador y categorías (4) y filtros de alertas (2) |
 | Índice mayorista de Jevons | 8 de 8 valores iguales a una réplica independiente del cálculo |
 | SISAP vs boletín PDF (06-11-2026) | 54 de 54 productos comunes coinciden |
 | Migración de Python a Java | Lector SISAP: 62 599 filas idénticas. Extractor PDF: 72 productos idénticos en sus 13 campos. Mismas variaciones anuales con Spark |
@@ -339,7 +398,10 @@ baratos. En ese periodo hubo 37 alertas, 12 de ellas de severidad alta.
 | Streaming A: boletín con datos ya cargados | 0 duplicados; 54 de 54 precios coinciden |
 | Streaming B: día quitado temporalmente y reconstruido desde el PDF | Misma alerta que el Batch (Zanahoria +33.7 %, media). Después se restauraron los datos |
 | Streaming C: modo continuo | Boletín detectado y procesado en unos 9 segundos |
-| Aplicación web | Las 5 vistas y los 59 detalles de producto responden sin errores. Las páginas tardan entre 0.1 y 0.6 s |
+| Aplicación web | Las 8 vistas, la página de error y los 59 detalles de producto responden sin errores. Las páginas tardan entre 0.1 y 1 s |
+| Prueba de interfaz en el navegador | 37 de 37 comprobaciones: sin errores de JavaScript, gráficos dibujados, menú contraíble que persiste y redimensiona los gráficos, tema claro por defecto con barra lateral negra y cambio a oscuro, filtros del diagnóstico, panel móvil (abrir, cerrar con Esc), "Saltar al contenido", "Volver arriba", índice que sigue la lectura, encabezado fijo en tablas largas y tablas como tarjetas en móvil |
+| Prueba del comparador y los filtros | 24 de 24 comprobaciones: carga de la canasta básica, colores estables al quitar productos, agregar, agrupar por mes, índice base 100, periodo de 3 meses, grupos listos, tabla ordenable, CSV, grupo por URL, filtros y casillas de Productos, filtros de Alertas, comparación por categoría y móvil |
+| Auditoría de diseño adaptable | Las 8 vistas y el comparador (con y sin grupo cargado) en 1280, 1024, 768 y 390 px (40 combinaciones): ninguna página ni tarjeta se desborda de lado, ninguna tabla esconde columnas sin aviso y en móvil no quedan controles de menos de 32 px |
 | Revisión visual | Capturas en modo claro y oscuro. Sirvieron para corregir seis defectos que las pruebas no detectaban (entre ellos, etiquetas superpuestas y ventanas de comparación desiguales) |
 
 ## 9. Limitaciones

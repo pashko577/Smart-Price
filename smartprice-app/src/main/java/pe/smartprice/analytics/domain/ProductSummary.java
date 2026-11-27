@@ -38,6 +38,15 @@ public record ProductSummary(
         return corrPriceVolume != null && corrPriceVolume <= -0.3;
     }
 
+    /**
+     * Último día con datos entre todos los productos. Es la referencia común de "los últimos 30 días"
+     * en todas las vistas, para que el Dashboard, Alertas, Análisis y la barra lateral cuenten lo mismo.
+     */
+    public static java.util.Optional<LocalDate> latestDate(java.util.List<ProductSummary> summaries) {
+        return summaries.stream().map(ProductSummary::lastDate).filter(java.util.Objects::nonNull)
+                .max(LocalDate::compareTo);
+    }
+
     /** Posición del último precio entre el mínimo y el máximo históricos (0 = mínimo, 1 = máximo). */
     public Double positionInHistoricalRange() {
         if (lastPrice == null || minAll == null || maxAll == null || maxAll.equals(minAll)) {

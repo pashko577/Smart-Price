@@ -4,46 +4,137 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title th:text="${title} + ' · SmartPrice'">SmartPrice</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/img/logo.svg}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <script>
-        // Aplica el tema guardado antes de pintar, para evitar el parpadeo.
+        // Aplica el tema y el estado del menú guardados antes de pintar, para evitar el parpadeo.
+        // Por defecto, claro (con la barra lateral negra); el botón del menú permite pasar a oscuro.
         (function () {
-            var t = localStorage.getItem("smartprice-theme");
-            if (t) document.documentElement.setAttribute("data-theme", t);
+            var root = document.documentElement;
+            var t = localStorage.getItem("smartprice-theme") || "light";
+            root.setAttribute("data-theme", t);
+            root.setAttribute("data-theme-effective", t);
+            if (localStorage.getItem("smartprice-sidebar") === "collapsed") root.classList.add("sb-collapsed");
         })();
     </script>
 </head>
 <body>
 
-<header th:fragment="header" class="topbar">
-    <div class="topbar-inner">
-        <a class="brand" th:href="@{/}">SmartPrice<span>Mercado Mayorista de Lima</span></a>
-        <nav class="nav" aria-label="Principal">
-            <a th:href="@{/}" th:classappend="${active == 'dashboard'} ? 'active'">Dashboard</a>
-            <a th:href="@{/products}" th:classappend="${active == 'products'} ? 'active'">Productos</a>
-            <a th:href="@{/alerts}" th:classappend="${active == 'alerts'} ? 'active'">Alertas</a>
-            <a th:href="@{/context}" th:classappend="${active == 'context'} ? 'active'">Contexto</a>
-            <a th:href="@{/sources}" th:classappend="${active == 'sources'} ? 'active'">Fuentes</a>
-        </nav>
-        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Cambiar tema">Tema</button>
+<!--
+  Barra lateral + barra superior móvil. Las páginas la incluyen con
+  <header th:replace="~{fragments/layout :: header}">, así que todas la heredan sin cambios.
+  "active" (lo pone cada controlador) marca la sección actual; "nav" es el estado de los datos.
+-->
+<th:block th:fragment="header">
+    <a class="skip-link" href="#main">Saltar al contenido</a>
+
+    <div class="mobilebar">
+        <button type="button" class="icon-btn" id="sb-open" aria-controls="sidebar" aria-expanded="false"
+                aria-label="Abrir menú">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <a class="mobile-brand" th:href="@{/}">
+            <img th:src="@{/img/logo.svg}" alt="" width="28" height="28"><span>Smart<span class="brand-accent">Price</span></span>
+        </a>
+        <button type="button" class="icon-btn js-theme-toggle" aria-label="Cambiar entre tema claro y oscuro">
+            <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>
+            <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        </button>
     </div>
-</header>
+    <div class="sb-backdrop" id="sb-backdrop"></div>
+
+    <aside class="sidebar" id="sidebar" aria-label="Navegación principal" th:with="nav=${@nav.status()}">
+        <div class="sb-head">
+            <a class="sb-brand" th:href="@{/}" title="SmartPrice">
+                <img class="sb-logo" th:src="@{/img/logo.svg}" alt="" width="34" height="34">
+                <span class="sb-brand-text">
+                    <strong>Smart<span class="brand-accent">Price</span></strong>
+                    <small>Mercado Mayorista de Lima</small>
+                </span>
+            </a>
+            <button type="button" class="icon-btn sb-close" id="sb-close" aria-label="Cerrar menú">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+            </button>
+        </div>
+
+        <nav class="sb-nav">
+            <p class="sb-section"><span>Monitoreo</span></p>
+            <a class="sb-link" th:href="@{/}" th:classappend="${active == 'dashboard'} ? 'active'"
+               th:attr="aria-current=${active == 'dashboard'} ? 'page' : null" title="Dashboard">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+                <span class="sb-label">Dashboard</span>
+            </a>
+            <a class="sb-link" th:href="@{/alerts}" th:classappend="${active == 'alerts'} ? 'active'"
+               th:attr="aria-current=${active == 'alerts'} ? 'page' : null" title="Alertas">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                <span class="sb-label">Alertas</span>
+                <span class="sb-badge" th:if="${nav.highAlerts() > 0}">
+                    <span th:text="${nav.highAlerts()}">12</span><span class="sr-only"> alertas de severidad alta en los últimos 30 días</span>
+                </span>
+            </a>
+
+            <p class="sb-section"><span>Análisis</span></p>
+            <a class="sb-link" th:href="@{/compare}" th:classappend="${active == 'compare'} ? 'active'"
+               th:attr="aria-current=${active == 'compare'} ? 'page' : null" title="Comparar precios">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6" rx="1"/><rect x="12" y="7" width="3" height="10" rx="1"/><rect x="17" y="13" width="3" height="4" rx="1"/></svg>
+                <span class="sb-label">Comparar precios</span>
+            </a>
+            <a class="sb-link" th:href="@{/analysis}" th:classappend="${active == 'analysis'} ? 'active'"
+               th:attr="aria-current=${active == 'analysis'} ? 'page' : null" title="Análisis del mercado">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-6"/><path d="M15 8h5v5"/></svg>
+                <span class="sb-label">Análisis del mercado</span>
+            </a>
+            <a class="sb-link" th:href="@{/products}" th:classappend="${active == 'products'} ? 'active'"
+               th:attr="aria-current=${active == 'products'} ? 'page' : null" title="Productos">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>
+                <span class="sb-label">Productos</span>
+            </a>
+            <a class="sb-link" th:href="@{/context}" th:classappend="${active == 'context'} ? 'active'"
+               th:attr="aria-current=${active == 'context'} ? 'page' : null" title="Contexto: IPC y supermercados">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+                <span class="sb-label">Contexto</span>
+            </a>
+
+            <p class="sb-section"><span>Sistema</span></p>
+            <a class="sb-link" th:href="@{/system}" th:classappend="${active == 'system'} ? 'active'"
+               th:attr="aria-current=${active == 'system'} ? 'page' : null" title="Cómo funciona">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>
+                <span class="sb-label">Cómo funciona</span>
+            </a>
+            <a class="sb-link" th:href="@{/sources}" th:classappend="${active == 'sources'} ? 'active'"
+               th:attr="aria-current=${active == 'sources'} ? 'page' : null" title="Fuentes y trazabilidad">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+                <span class="sb-label">Fuentes</span>
+            </a>
+        </nav>
+
+        <div class="sb-foot">
+            <div class="sb-status" th:classappend="${nav.online()} ? 'ok' : 'off'"
+                 th:title="${nav.online()} ? 'Conectado a MongoDB Atlas' : 'Sin conexión a MongoDB'">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="sb-label">
+                    <strong th:if="${nav.online()}" th:text="'Datos al ' + ${@fmt.date(nav.dataDate())}">Datos al 26/11/2026</strong>
+                    <strong th:unless="${nav.online()}">Sin conexión a MongoDB</strong>
+                    <small th:if="${nav.online()}" th:text="${nav.products()} + ' productos · MongoDB Atlas'">59 productos · MongoDB Atlas</small>
+                    <small th:unless="${nav.online()}">Revisa el .env y la red</small>
+                </span>
+            </div>
+            <button type="button" class="sb-action js-theme-toggle" title="Cambiar tema">
+                <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>
+                <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+                <span class="sb-label"><span class="t-dark">Tema oscuro</span><span class="t-light">Tema claro</span></span>
+            </button>
+            <button type="button" class="sb-action sb-collapse" id="sb-collapse" aria-pressed="false" title="Contraer o expandir el menú">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg>
+                <span class="sb-label">Contraer menú</span>
+            </button>
+        </div>
+    </aside>
+</th:block>
 
 <footer th:fragment="footer" class="site">
-    Fuente: MIDAGRI — SISAP (precios y volumen del Gran Mercado Mayorista de Lima).
-    Precios promedio mayoristas en soles por kg, litro o unidad; no son precios al consumidor.
-    Indicadores calculados con Apache Spark.
-    <script>
-        document.getElementById("theme-toggle").addEventListener("click", function () {
-            var root = document.documentElement;
-            var current = root.getAttribute("data-theme")
-                || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-            var next = current === "dark" ? "light" : "dark";
-            root.setAttribute("data-theme", next);
-            localStorage.setItem("smartprice-theme", next);
-            document.dispatchEvent(new CustomEvent("smartprice:theme"));
-        });
-    </script>
+    Fuente: MIDAGRI (SISAP) · IPC: INEI/BCRP · Supermercados: Qhawarina · Precios mayoristas, no al consumidor.
+    <script th:src="@{/js/layout.js}"></script>
 </footer>
 
 </body>

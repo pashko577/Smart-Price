@@ -135,6 +135,30 @@ Boletín PDF ──┘   Batch + Structured Streaming
 > **Qué decir:** "No uso un umbral fijo. Un 20 % puede ser normal para un producto volátil y
 > anormal para uno estable. Por eso el rango se calcula por producto con el método IQR."
 
+### Paso 3b · Análisis del mercado y "Cómo funciona" (1 min) — desde la barra lateral
+- **Análisis del mercado**: lee los puntos de "Lo más importante" (fase de alza,
+  37 de 59 productos más caros, canasta +13.8 %).
+- En "Cómo reaccionó el sistema", abre la alerta de la **Zanahoria del 23/11**: muestra el rango normal,
+  la distancia de 5.3 IQR que la vuelve **Alta** y la caída del volumen que la marca como
+  **"Menor abastecimiento"**.
+- En "Diagnóstico por producto", pulsa el filtro **Alza fuerte** y escribe "papa" en el buscador.
+- **Cómo funciona**: señala la tabla "Qué hace el sistema ante cada evento" y el glosario.
+
+> **Qué decir:** "El sistema no solo muestra números: explica cada alerta con la misma cuenta que hizo
+> Spark, y cualquiera puede verificarla. El texto lo arman reglas fijas, no se inventa nada."
+
+### Paso 3c · Comparar precios (1 min) — desde la barra lateral
+- Abre **Comparar precios**: carga la canasta básica del último año. Señala la mayor subida (papa Yungay,
+  de S/ 0.69 a S/ 1.83) y los cuatro indicadores de arriba.
+- Pulsa **Índice base 100**: todos empiezan en 100 y se ve cuál cambió más, aunque el ajo cueste siete veces
+  más que la papa.
+- En **Cargar un grupo**, elige **Papas** y luego **Agrupar por: Mes**.
+- Muestra el gráfico **Frente al mismo periodo del año anterior** y la tabla (clic en "Variación" para ordenar).
+- Pulsa **Descargar resumen (CSV)**: se abre en Excel con columnas.
+
+> **Qué decir:** "Esta es la comparación de precios: cualquier combinación de productos y periodo, con los
+> mismos datos en el gráfico, en la tabla y en el archivo que se descarga. Y el enlace guarda los filtros."
+
 ### Paso 4 · Contexto (1 min) — pestaña 4
 - Primer gráfico: desde enero de 2024, el mayorista subió **+39.8 %** frente al **+8.5 %** del IPC de Lima.
 - Señala que el IPC total y el IPC sin alimentos van casi pegados: en la canasta completa, los
@@ -191,7 +215,7 @@ Añade una línea de contexto: "En el conjunto, el mayorista subió un 39.8 % de
 
 | Verificación | Resultado |
 |---|---|
-| 24 pruebas automatizadas | Todas correctas |
+| 37 pruebas automatizadas + 61 comprobaciones de interfaz | Todas correctas |
 | Índice mayorista recalculado de forma independiente | 8 de 8 valores coinciden |
 | SISAP frente al PDF | 54 de 54 coinciden |
 | Migración Python → Java | Resultados idénticos (62 599 filas) |
