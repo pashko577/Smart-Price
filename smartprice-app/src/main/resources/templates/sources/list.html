@@ -4,7 +4,7 @@
 <body>
 <header th:replace="~{fragments/layout :: header}"></header>
 
-<main>
+<main id="main">
     <div class="page-head">
         <h1>Fuentes y trazabilidad</h1>
         <p>Cada precio del sistema se puede rastrear hasta el archivo original del que proviene.</p>
@@ -34,7 +34,7 @@
 
     <section class="card" style="margin-top:16px">
         <h2>Archivos cargados</h2>
-        <p class="sub">Exportación manual "Precio Promedio, Volumen" de SISAP, en bloques de unos 5 meses por el límite de la consulta</p>
+        <p class="sub">Exportaciones de SISAP en bloques de ~5 meses</p>
         <div class="table-wrap">
             <table>
                 <thead>
@@ -63,7 +63,7 @@
 
     <section class="card" style="margin-top:16px" th:unless="${contextFiles.isEmpty()}">
         <h2>Archivos de contexto</h2>
-        <p class="sub">Índices para comparar el mercado mayorista con los supermercados y la inflación (vista Contexto)</p>
+        <p class="sub">IPC y supermercados (vista Contexto)</p>
         <div class="table-wrap">
             <table>
                 <thead>
@@ -90,8 +90,7 @@
 
     <section class="card" style="margin-top:16px">
         <h2>Boletines procesados por Streaming</h2>
-        <p class="sub">Spark Structured Streaming: cada boletín PDF diario del GMML se procesa al llegar
-            (comandos <code>ingest-pdf</code> y <code>stream-prices</code>)</p>
+        <p class="sub">Cada boletín PDF se procesa al llegar</p>
         <div class="table-wrap" th:unless="${runs.isEmpty()}">
             <table>
                 <thead>
@@ -132,28 +131,28 @@
     </section>
 
     <section class="grid grid-2" style="margin-top:16px">
-        <div class="card">
-            <h2>Cómo se obtienen los datos</h2>
-            <p class="sub">Del archivo original a la pantalla</p>
-            <ol style="margin:0;padding-left:20px;line-height:1.8">
-                <li>Exportación de SISAP (tabla HTML con extensión .xls, Latin-1).</li>
-                <li>Lectura y conversión a formato largo (job Java <code>sisap-to-csv</code>).</li>
-                <li>Carga en MongoDB Atlas con Apache Spark, sin duplicados (<code>load-sisap</code>).</li>
-                <li>Indicadores y alertas con Apache Spark (<code>batch-analytics</code>).</li>
-                <li>Boletines diarios nuevos con Spark Structured Streaming (<code>ingest-pdf</code> + <code>stream-prices</code>).</li>
-                <li>Esta aplicación (Spring Boot) solo lee los resultados.</li>
-            </ol>
+        <div class="card more-card">
+            <details class="more">
+                <summary>¿Cómo se obtienen los datos?</summary>
+                <ol class="help-list">
+                    <li>SISAP → CSV largo (<code>sisap-to-csv</code>).</li>
+                    <li>Carga en MongoDB con Spark (<code>load-sisap</code>).</li>
+                    <li>Indicadores y alertas (<code>batch-analytics</code>).</li>
+                    <li>Boletines nuevos por Streaming (<code>stream-prices</code>).</li>
+                    <li>La web solo lee los resultados.</li>
+                </ol>
+            </details>
         </div>
-        <div class="card">
-            <h2>Notas de calidad de datos</h2>
-            <p class="sub">Limitaciones conocidas</p>
-            <ul style="margin:0;padding-left:20px;line-height:1.7">
-                <li>Son precios <strong>mayoristas</strong> promedio, no precios al consumidor.</li>
-                <li>"Papa Blanca" tiene el mismo precio que "Papa Yungay" en 1 059 de 1 061 días:
-                    probablemente es una categoría agregada; no son evidencias independientes.</li>
-                <li>Los datos de SISAP coincidieron con el boletín PDF del 06-11-2026 en los 54 productos comunes.</li>
-                <li>SISAP tenía el certificado TLS vencido (26-11-2026): la descarga se hizo de forma manual.</li>
-            </ul>
+        <div class="card more-card">
+            <details class="more">
+                <summary>Notas de calidad de datos</summary>
+                <ul class="help-list">
+                    <li>Precios <strong>mayoristas</strong>, no al consumidor.</li>
+                    <li>Papa Blanca = Papa Yungay en 1 059 de 1 061 días.</li>
+                    <li>SISAP y el PDF del 06/11/2026 coinciden en 54 de 54.</li>
+                    <li>SISAP tenía el TLS vencido: descarga manual.</li>
+                </ul>
+            </details>
         </div>
     </section>
 </main>

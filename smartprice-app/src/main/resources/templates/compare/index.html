@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Comparar precios')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main id="main">
+    <div class="page-head">
+        <p class="eyebrow">Análisis</p>
+        <h1>Comparar precios</h1>
+        <p class="lead">Hasta <span th:text="${maxProducts}">6</span> productos, en el periodo que elijas.</p>
+    </div>
+
+    <!-- ===================== filtros (una sola zona, arriba de todo lo que afectan) ===================== -->
+    <section class="card cmp-controls" id="cmp-root" aria-label="Filtros de la comparación"
+             th:data-first="${firstDate}" th:data-last="${lastDate}" th:data-max="${maxProducts}"
+             th:data-default="${#strings.listJoin(defaultProducts, '|')}">
+        <div class="cmp-row">
+            <div class="cmp-field">
+                <span class="cmp-label" id="lbl-period">Periodo</span>
+                <div class="segmented" role="group" aria-labelledby="lbl-period" id="period-presets">
+                    <button type="button" data-days="90">3 meses</button>
+                    <button type="button" data-days="180">6 meses</button>
+                    <button type="button" data-days="365">1 año</button>
+                    <button type="button" data-days="730">2 años</button>
+                    <button type="button" data-days="0">Todo</button>
+                </div>
+            </div>
+            <label class="cmp-field">Desde
+                <input type="date" id="f-from" th:min="${firstDate}" th:max="${lastDate}">
+            </label>
+            <label class="cmp-field">Hasta
+                <input type="date" id="f-to" th:min="${firstDate}" th:max="${lastDate}">
+            </label>
+        </div>
+
+        <div class="cmp-row">
+            <div class="cmp-field cmp-grow">
+                <span class="cmp-label" id="lbl-products">Productos</span>
+                <div class="cmp-chips" id="chips" role="list" aria-labelledby="lbl-products"></div>
+            </div>
+        </div>
+
+        <div class="cmp-row">
+            <label class="cmp-field">Agregar producto
+                <select id="f-add">
+                    <option value="">Elige un producto…</option>
+                    <optgroup th:each="g : ${byCategory}" th:label="${g.key}">
+                        <option th:each="p : ${g.value}" th:value="${p.name()}"
+                                th:text="${p.name()} + ' · ' + ${@fmt.soles(p.lastPrice())}">Zanahoria</option>
+                    </optgroup>
+                </select>
+            </label>
+            <label class="cmp-field">Cargar un grupo
+                <select id="f-preset">
+                    <option value="">Elige un grupo…</option>
+                    <option th:each="p : ${presets}" th:value="${p.key()}" th:text="${p.label()}"
+                            th:data-products="${#strings.listJoin(p.products(), '|')}" th:title="${p.hint()}">Canasta básica</option>
+                </select>
+            </label>
+            <div class="cmp-field">
+                <span class="cmp-label" id="lbl-group">Agrupar por</span>
+                <div class="segmented" role="group" aria-labelledby="lbl-group" id="group-buttons">
+                    <button type="button" data-group="DAY">Día</button>
+                    <button type="button" data-group="WEEK" aria-pressed="true">Semana</button>
+                    <button type="button" data-group="MONTH">Mes</button>
+                </div>
+            </div>
+            <div class="cmp-field">
+                <span class="cmp-label" id="lbl-measure">Mostrar</span>
+                <div class="segmented" role="group" aria-labelledby="lbl-measure" id="measure-buttons">
+                    <button type="button" data-measure="price" aria-pressed="true">Precio S/ por kg</button>
+                    <button type="button" data-measure="index">Índice base 100</button>
+                    <button type="button" data-measure="volume">Volumen (t)</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="cmp-actions">
+            <a class="button-secondary" id="dl-points" th:href="@{/api/compare.csv}" download>Descargar datos (CSV)</a>
+            <a class="button-secondary" id="dl-stats" th:href="@{/api/compare.csv}" download>Descargar resumen (CSV)</a>
+            <button type="button" class="button-secondary" id="copy-link">Copiar enlace</button>
+            <span class="muted" id="cmp-status" aria-live="polite"></span>
+        </div>
+    </section>
+
+    <div id="cmp-results" class="cmp-results">
+        <div class="notice error" id="cmp-error" hidden></div>
+
+        <!-- ===================== indicadores ===================== -->
+        <section class="grid grid-4 mt" aria-label="Resumen de la comparación">
+            <div class="card stat"><div class="label">Mayor subida</div><div class="value" id="k-rise">—</div><div class="note" id="k-rise-n"></div></div>
+            <div class="card stat"><div class="label">Mayor bajada</div><div class="value" id="k-fall">—</div><div class="note" id="k-fall-n"></div></div>
+            <div class="card stat"><div class="label">Más inestable</div><div class="value" id="k-vol">—</div><div class="note" id="k-vol-n"></div></div>
+            <div class="card stat"><div class="label">Más barato (promedio)</div><div class="value" id="k-cheap">—</div><div class="note" id="k-cheap-n"></div></div>
+        </section>
+
+        <!-- ===================== gráfico principal ===================== -->
+        <section class="card mt" aria-labelledby="t-main">
+            <div class="chart-title">
+                <div>
+                    <h2 id="t-main">Precio promedio por kg</h2>
+                    <p class="sub" id="main-sub">Soles por kg · agrupado por semana</p>
+                </div>
+            </div>
+            <p class="notice hint" id="main-hint" hidden></p>
+            <div id="chart-main" class="chart chart-compare" role="img" aria-label="Evolución de los productos comparados"></div>
+        </section>
+
+        <!-- ===================== comparaciones ===================== -->
+        <section class="grid grid-2 mt">
+            <div class="card">
+                <h2>Variación en el periodo</h2>
+                <p class="sub">Último precio vs el primero</p>
+                <div id="chart-rank" class="chart chart-rank" role="img" aria-label="Variación de cada producto en el periodo"></div>
+            </div>
+            <div class="card">
+                <h2>Frente al año anterior</h2>
+                <p class="sub">Promedio vs el mismo periodo de hace un año</p>
+                <div id="chart-yoy" class="chart chart-rank" role="img" aria-label="Variación frente al año anterior"></div>
+            </div>
+        </section>
+
+        <!-- ===================== tabla ===================== -->
+        <section class="card mt" aria-labelledby="t-table">
+            <h2 id="t-table">Resumen por producto</h2>
+            <p class="sub">Precios diarios del periodo · clic en un encabezado para ordenar</p>
+            <div class="table-wrap">
+                <table id="stats-table" class="sortable">
+                    <thead>
+                    <tr>
+                        <th data-key="product">Producto</th>
+                        <th class="num" data-key="firstPrice">Precio inicial</th>
+                        <th class="num" data-key="lastPrice">Precio final</th>
+                        <th class="num" data-key="changePct">Variación</th>
+                        <th class="num" data-key="minPrice">Mínimo</th>
+                        <th class="num" data-key="maxPrice">Máximo</th>
+                        <th class="num" data-key="avgPrice">Promedio</th>
+                        <th class="num" data-key="vsPrevYearPct">vs año anterior</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <details class="more">
+                <summary>¿Qué significa cada dato?</summary>
+                <ul class="help-list">
+                    <li><b>Índice base 100:</b> todos parten en 100; 150 = 50 % más caro.</li>
+                    <li><b>Variación:</b> último precio vs el primero del periodo.</li>
+                    <li><b>vs año anterior:</b> promedio vs el mismo periodo de hace un año.</li>
+                    <li><b>Más inestable:</b> mayor variación típica de un día a otro.</li>
+                    <li>Volatilidad, volumen y correlación: en <b>Descargar resumen (CSV)</b>.</li>
+                </ul>
+            </details>
+        </section>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+<script th:src="@{/js/vendor/echarts-5.6.0.min.js}"></script>
+<script th:src="@{/js/compare.js}"></script>
+<script th:inline="javascript">
+    SmartPriceCompare.init({
+        api: /*[[@{/api/compare}]]*/ "/api/compare",
+        csv: /*[[@{/api/compare.csv}]]*/ "/api/compare.csv",
+        product: /*[[@{/product}]]*/ "/product"
+    });
+</script>
+</body>
+</html>

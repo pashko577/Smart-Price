@@ -18,6 +18,14 @@ public interface ListAlertsUseCase {
 
     AlertStats statsSince(LocalDate since);
 
+    /**
+     * Conteo de TODAS las alertas que cumplen el filtro (sin severidad mínima ni límite de página),
+     * para que los indicadores de la vista coincidan con los filtros elegidos.
+     */
+    default AlertStats stats(AlertFilter filter, LocalDate since) {
+        return statsSince(since);
+    }
+
     /** Fecha de la alerta más reciente, útil para calcular "últimos N días". */
     LocalDate lastAlertDate();
 }

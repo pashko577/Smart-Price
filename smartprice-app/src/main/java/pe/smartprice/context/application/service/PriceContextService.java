@@ -26,8 +26,7 @@ public class PriceContextService implements GetPriceContextUseCase {
     public PriceContext wholesaleVsInflation() {
         return PriceContext.of(
                 "Mercado mayorista frente a la inflación",
-                "Índices mensuales con base enero 2024 = 100. El IPC mide toda la canasta del consumidor de Lima; "
-                        + "el índice mayorista solo 59 productos frescos del Gran Mercado Mayorista.",
+                "Mensual · base enero 2024 = 100",
                 MONTHLY_BASE,
                 List.of(port.find("SMARTPRICE", "gmml_jevons_monthly"),
                         port.find("BCRP_INEI", "PN38705PM"),
@@ -38,8 +37,7 @@ public class PriceContextService implements GetPriceContextUseCase {
     public PriceContext wholesaleVsSupermarkets() {
         return PriceContext.of(
                 "Mercado mayorista frente a supermercados",
-                "Índices diarios con base 10 de febrero de 2026 = 100. Supermercados: Plaza Vea, Metro y Wong "
-                        + "(Qhawarina), cuyo índice público no se actualiza desde el 13 de junio de 2026.",
+                "Diario · base 10/02/2026 = 100 · Qhawarina llega hasta el 13/06/2026",
                 DAILY_BASE,
                 List.of(port.find("SMARTPRICE", "gmml_jevons_daily"),
                         port.find("QHAWARINA", "index_food"),

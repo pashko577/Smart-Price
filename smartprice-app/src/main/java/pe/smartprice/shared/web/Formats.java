@@ -20,9 +20,12 @@ public class Formats {
         return new DecimalFormat(pattern, DecimalFormatSymbols.getInstance(ES_PE));
     }
 
+    /** Espacio que no se parte: "S/ 3.06" y "12 %" nunca quedan en dos líneas. */
+    static final String NBSP = " ";
+
     /** "S/ 3.06" */
     public String soles(Double v) {
-        return v == null ? "—" : "S/ " + df("#,##0.00").format(v);
+        return v == null ? "—" : "S/" + NBSP + df("#,##0.00").format(v);
     }
 
     /** "+12.3 %" / "−4.0 %" (con signo menos tipográfico). */
@@ -31,11 +34,16 @@ public class Formats {
             return "—";
         }
         String s = df("0.0").format(Math.abs(v));
-        return (v > 0 ? "+" : v < 0 ? "−" : "") + s + " %";
+        return (v > 0 ? "+" : v < 0 ? "−" : "") + s + NBSP + "%";
     }
 
     public String num(Double v, int decimals) {
-        return v == null ? "—" : df(decimals == 0 ? "#,##0" : "#,##0." + "0".repeat(decimals)).format(v);
+        if (v == null) {
+            return "—";
+        }
+        // Un valor que se redondea a cero se muestra sin signo ("0.00", no "-0.00").
+        double shown = Math.abs(v) < 0.5 * Math.pow(10, -decimals) ? 0.0 : v;
+        return df(decimals == 0 ? "#,##0" : "#,##0." + "0".repeat(decimals)).format(shown);
     }
 
     public String num(Long v) {

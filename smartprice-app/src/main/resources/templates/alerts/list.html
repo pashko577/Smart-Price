@@ -4,16 +4,29 @@
 <body>
 <header th:replace="~{fragments/layout :: header}"></header>
 
-<main>
+<main id="main">
     <div class="page-head">
         <h1>Alertas de precio</h1>
-        <p>
-            Días en que la variación del precio frente al día anterior salió del rango normal del producto
-            (método IQR, k = 3, variación mínima 15 %).
-        </p>
+        <p>Cambios diarios fuera del rango normal de cada producto.</p>
     </div>
 
-    <form class="filters" method="get" th:action="@{/alerts}">
+    <form class="filters" method="get" th:action="@{/alerts}" id="alert-filters">
+        <label>Periodo
+            <select name="days" id="f-days">
+                <option value="30" th:selected="${days == 30}">Últimos 30 días</option>
+                <option value="90" th:selected="${days == 90}">Últimos 90 días</option>
+                <option value="180" th:selected="${days == 180}">Últimos 6 meses</option>
+                <option value="365" th:selected="${days == 365}">Último año</option>
+                <option value="0" th:selected="${days == 0}">Todo el histórico</option>
+                <option value="-1" th:selected="${days == -1}">Fechas exactas…</option>
+            </select>
+        </label>
+        <label class="date-field" th:classappend="${days != -1} ? 'is-hidden'">Desde
+            <input type="date" name="from" id="f-from" th:value="${from}" min="2024-01-01" th:max="${asOf}">
+        </label>
+        <label class="date-field" th:classappend="${days != -1} ? 'is-hidden'">Hasta
+            <input type="date" name="to" id="f-to" th:value="${to}" min="2024-01-01" th:max="${asOf}">
+        </label>
         <label>Severidad mínima
             <select name="severity">
                 <option value="HIGH" th:selected="${severity == 'HIGH'}">Alta</option>
@@ -28,29 +41,33 @@
                 <option value="PRICE_DROP" th:selected="${type == 'PRICE_DROP'}">Solo bajadas</option>
             </select>
         </label>
+        <label>Categoría
+            <select name="category">
+                <option value="">Todas</option>
+                <option th:each="c : ${categories}" th:value="${c.key()}" th:text="${c.label()}"
+                        th:selected="${c.key() == category}">Papas</option>
+            </select>
+        </label>
         <label>Producto
             <select name="product">
-                <option value="">Todos</option>
+                <option value="" th:text="${category == ''} ? 'Todos' : 'Todos los de la categoría'">Todos</option>
                 <option th:each="n : ${productNames}" th:value="${n}" th:text="${n}"
                         th:selected="${n == product}">Producto</option>
             </select>
         </label>
-        <label>Periodo
-            <select name="days">
-                <option value="30" th:selected="${days == 30}">Últimos 30 días</option>
-                <option value="90" th:selected="${days == 90}">Últimos 90 días</option>
-                <option value="365" th:selected="${days == 365}">Último año</option>
-                <option value="0" th:selected="${days == 0}">Todo el histórico</option>
-            </select>
+        <label class="check">
+            <input type="checkbox" name="supply" value="true" th:checked="${supply}">
+            <span>Solo menor abastecimiento</span>
         </label>
         <button type="submit" class="primary">Aplicar</button>
+        <a th:if="${filtered}" th:href="@{/alerts}" class="clear-filters">Limpiar filtros</a>
     </form>
 
     <section class="grid grid-4" style="margin-bottom:16px" aria-label="Resumen del periodo">
         <div class="card stat">
-            <div class="label">Alertas en el periodo</div>
+            <div class="label">Alertas con estos filtros</div>
             <div class="value" th:text="${@fmt.num(stats.total())}">120</div>
-            <div class="note">todas las severidades y productos</div>
+            <div class="note">todas las severidades</div>
         </div>
         <div class="card stat">
             <div class="label"><span class="sev sev-HIGH">Alta</span></div>
@@ -67,7 +84,7 @@
     </section>
 
     <section class="card">
-        <p class="sub" th:text="'Mostrando ' + ${alerts.size()} + ' alertas' + (${alerts.size() >= pageSize} ? ' (límite de la página; ajusta los filtros para ver otras)' : '')">Mostrando</p>
+        <p class="sub" th:text="${alerts.size()} + ' alertas' + (${alerts.size() >= pageSize} ? ' (máximo por página: usa los filtros)' : '')">Mostrando</p>
         <div class="table-wrap" th:unless="${alerts.isEmpty()}">
             <table>
                 <thead>
@@ -78,16 +95,15 @@
                     <th class="num">Antes</th>
                     <th class="num">Ahora</th>
                     <th class="num">Variación</th>
-                    <th class="num">Rango normal</th>
-                    <th class="num">Volumen (t)</th>
+                    <th class="num opt">Rango normal</th>
+                    <th class="num opt">Volumen (t)</th>
                     <th class="num">vs 30 días</th>
-                    <th></th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr th:each="a : ${alerts}">
                     <td th:text="${@fmt.date(a.observedAt())}">23/11/2026</td>
-                    <td><a th:href="@{/product(name=${a.productName()})}" th:text="${a.productName()}">Zanahoria</a></td>
+                    <td class="product-cell"><a th:href="@{/product(name=${a.productName()})}" th:text="${a.productName()}">Zanahoria</a><span class="tag supply tag-block" th:if="${a.isExplainedBySupplyDrop()}">Menor abastecimiento</span></td>
                     <td><span class="sev" th:classappend="'sev-' + ${a.severity()}"
                               th:text="${a.severity().name() == 'HIGH' ? 'Alta' : (a.severity().name() == 'MEDIUM' ? 'Media' : 'Baja')}">Alta</span></td>
                     <td class="num" th:text="${@fmt.soles(a.previousPrice())}">S/ 2.73</td>
@@ -97,7 +113,6 @@
                     <td class="num muted" th:text="${@fmt.pct(a.lowerBound())} + ' a ' + ${@fmt.pct(a.upperBound())}">−22 % a +22 %</td>
                     <td class="num" th:text="${@fmt.num(a.volumeT(), 0)}">45</td>
                     <td class="num" th:text="${@fmt.pct(a.volumeChangePct())}">−84 %</td>
-                    <td><span class="tag supply" th:if="${a.isExplainedBySupplyDrop()}">Menor abastecimiento</span></td>
                 </tr>
                 </tbody>
             </table>
@@ -107,5 +122,46 @@
 </main>
 
 <footer th:replace="~{fragments/layout :: footer}"></footer>
+<script>
+    // Los filtros se aplican solos al cambiar una lista o la casilla; las fechas exactas, con "Aplicar".
+    (function () {
+        var form = document.getElementById("alert-filters");
+        var days = document.getElementById("f-days");
+        var dateFields = form.querySelectorAll(".date-field");
+        var from = document.getElementById("f-from");
+        var to = document.getElementById("f-to");
+
+        // requestSubmit dispara el evento "submit" (form.submit() no lo hace).
+        function send() { if (form.requestSubmit) form.requestSubmit(); else form.submit(); }
+
+        function showDates(show) {
+            dateFields.forEach(function (f) { f.classList.toggle("is-hidden", !show); });
+        }
+
+        days.addEventListener("change", function () {
+            if (days.value === "-1") {
+                showDates(true);
+                from.focus();
+                return;
+            }
+            from.value = "";
+            to.value = "";
+            send();
+        });
+        form.querySelectorAll("select:not(#f-days), input[type=checkbox]").forEach(function (el) {
+            el.addEventListener("change", function () {
+                // Al cambiar de categoría, el producto elegido puede no pertenecer a ella.
+                if (el.name === "category") form.querySelector("select[name=product]").value = "";
+                send();
+            });
+        });
+        form.addEventListener("submit", function () {
+            // Sin fechas exactas no se envían campos vacíos (URL limpia y compartible).
+            if (days.value !== "-1") { from.disabled = true; to.disabled = true; }
+            if (days.value === "-1") days.disabled = true;
+            form.querySelectorAll("select").forEach(function (s) { if (s.value === "") s.disabled = true; });
+        });
+    })();
+</script>
 </body>
 </html>

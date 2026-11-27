@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Análisis del mercado')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main id="main" th:with="a=${analysis}, p=${analysis.pulse()}">
+    <div class="page-head">
+        <p class="eyebrow">Análisis</p>
+        <h1>Análisis del mercado</h1>
+        <p class="lead">
+            Últimos 30 días (<span th:text="${@fmt.date(a.windowStart())}">28/10/2026</span> –
+            <strong th:text="${@fmt.date(a.asOf())}">26/11/2026</strong>): qué pasa con los precios y por qué.
+        </p>
+    </div>
+
+    <div class="toc" aria-label="En esta página">
+        <a href="#lectura">Resumen</a>
+        <a href="#distribucion">Suben o bajan</a>
+        <a href="#categorias">Categorías</a>
+        <a href="#reaccion">Alertas</a>
+        <a href="#diagnostico">Diagnóstico</a>
+    </div>
+
+    <!-- ===================== indicadores ===================== -->
+    <section class="grid grid-4" aria-label="Resumen de los últimos 30 días">
+        <div class="card stat">
+            <div class="label">Fase del mercado</div>
+            <div class="value" th:text="${p.phase().label()}">En alza</div>
+            <div class="note">
+                Canasta de <span th:text="${p.products()}">59</span> productos:
+                <span class="delta" th:classappend="${@fmt.tone(p.basketChangePct())}"
+                      th:text="${@fmt.pct(p.basketChangePct())}">+14 %</span> en 30 días
+            </div>
+        </div>
+        <div class="card stat">
+            <div class="label">Productos al alza (5 % o más)</div>
+            <div class="value"><span th:text="${p.rising()}">37</span><small class="muted" style="font-size:16px"
+                    th:text="' de ' + ${p.products()}"> de 59</small></div>
+            <div class="note"><span th:text="${p.stable()}">13</span> estables ·
+                <span th:text="${p.falling()}">9</span> a la baja</div>
+        </div>
+        <div class="card stat">
+            <div class="label">Alertas en 30 días</div>
+            <div class="value" th:text="${a.alertStats().total()}">37</div>
+            <div class="note"><span th:text="${a.alertStats().high()}">12</span> de severidad alta ·
+                <span th:text="${a.alertStats().spikes()}">26</span> subidas</div>
+        </div>
+        <div class="card stat">
+            <div class="label">Subidas por menor abastecimiento</div>
+            <div class="value" th:text="${a.supplyExplainedSpikes()}">8</div>
+            <div class="note">de <span th:text="${a.alertStats().spikes()}">26</span> subidas atípicas</div>
+        </div>
+    </section>
+
+    <!-- ===================== lo más importante (puntos clave "Tema: dato") ===================== -->
+    <section id="lectura" class="card mt" aria-labelledby="t-lectura">
+        <h2 id="t-lectura" style="margin-bottom:10px">Lo más importante</h2>
+        <ul class="keypoints">
+            <li th:each="par : ${a.narrative()}">
+                <strong th:text="${#strings.substringBefore(par, ': ')} + ':'">Canasta:</strong>
+                <span th:text="${#strings.substringAfter(par, ': ')}">+13.8 % en 30 días</span>
+            </li>
+        </ul>
+    </section>
+
+    <!-- ===================== distribución + vigilancia ===================== -->
+    <section class="grid grid-2 mt">
+        <div id="distribucion" class="card" th:if="${p.products() > 0}">
+            <h2>¿Cuántos suben o bajan?</h2>
+            <p class="sub">Variación de 30 días · pasa el cursor para ver los productos</p>
+            <div class="dist" role="list">
+                <div class="dist-col" role="listitem" tabindex="0" th:each="b : ${p.distribution()}"
+                     th:with="h=${p.maxBucket() == 0 ? 0 : b.count() * 100.0 / p.maxBucket()}">
+                    <span class="dist-count" th:text="${b.count()}">10</span>
+                    <div class="dist-bar" th:classappend="${b.tone()}" th:style="'height:' + ${h} + '%'"></div>
+                    <div class="tip">
+                        <strong th:text="${b.label()} + ': ' + ${b.count()} + (${b.count() == 1} ? ' producto' : ' productos')">tramo</strong>
+                        <div th:if="${b.count() > 0}"
+                             th:text="${#strings.listJoin(b.products().size() > 12 ? b.products().subList(0, 12) : b.products(), ', ')} + (${b.products().size() > 12} ? ' y ' + ${b.products().size() - 12} + ' más' : '')">productos</div>
+                    </div>
+                </div>
+            </div>
+            <div class="dist-labels" aria-hidden="true">
+                <span th:each="b : ${p.distribution()}" th:text="${b.label()}">tramo</span>
+            </div>
+            <div class="dist-legend">
+                <span><i style="background:var(--div-down)"></i>Más baratos</span>
+                <span><i style="background:var(--axis)"></i>Estables (menos de 5 %)</span>
+                <span><i style="background:var(--div-up)"></i>Más caros</span>
+            </div>
+            <p class="muted" style="font-size:13px;margin:12px 0 0">
+                Producto típico (mediana): <strong th:text="${@fmt.pct(p.medianChangePct())}">+8 %</strong>
+            </p>
+        </div>
+
+        <div class="card">
+            <h2>Qué vigilar</h2>
+            <p class="sub">Alza fuerte con alertas altas o en su máximo</p>
+            <ul class="watch" th:unless="${a.watchList().isEmpty()}">
+                <li th:each="d : ${a.watchList()}">
+                    <div class="row">
+                        <a th:href="@{/product(name=${d.productName()})}" th:text="${d.productName()}"><strong>Producto</strong></a>
+                        <span class="delta" th:classappend="${@fmt.tone(d.summary().varPct30d())}"
+                              th:text="${@fmt.pct(d.summary().varPct30d())}">+64 %</span>
+                    </div>
+                    <div class="flags">
+                        <span class="tag" th:if="${d.highAlerts() > 0}"
+                              th:text="${d.highAlerts()} + (${d.highAlerts() == 1} ? ' alerta alta' : ' alertas altas')">2 alertas altas</span>
+                        <span class="tag" th:if="${d.nearHistoricalHigh()}">Cerca del máximo histórico</span>
+                        <span class="tag supply" th:if="${d.supplyExplained()}">Menor abastecimiento</span>
+                        <span class="tag" th:if="${d.muchHigherThanLastYear()}"
+                              th:text="${@fmt.pct(d.summary().varPctYoy())} + ' vs hace un año'">+96 % vs hace un año</span>
+                    </div>
+                </li>
+            </ul>
+            <p class="muted" th:if="${a.watchList().isEmpty()}">Ningún producto cumple las condiciones de vigilancia.</p>
+        </div>
+    </section>
+
+    <!-- ===================== comparación por categoría ===================== -->
+    <section id="categorias" class="card mt" aria-labelledby="t-cat" th:unless="${a.categories().isEmpty()}">
+        <div class="section-title">
+            <h2 id="t-cat">Por categoría</h2>
+            <a th:href="@{/compare}">Abrir el comparador →</a>
+        </div>
+        <p class="sub">Mediana de cada grupo: 30 días y vs hace un año</p>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Categoría</th>
+                    <th style="min-width:200px">Variación 30 días (mediana)</th>
+                    <th class="num">Frente a hace un año</th>
+                    <th class="num">Al alza / a la baja</th>
+                    <th class="num">Alertas 30 d</th>
+                    <th class="opt">Mayor cambio</th>
+                    <th class="opt"></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="c : ${a.categories()}">
+                    <td><a th:href="@{/products(category=${c.category().key()})}" th:text="${c.category().label()}">Papas</a>
+                        <span class="muted" style="font-size:12.5px" th:text="' · ' + ${c.products()} + (${c.products() == 1} ? ' producto' : ' productos')"> · 10 productos</span></td>
+                    <td>
+                        <div class="catbar" th:if="${c.medianVar30() != null}">
+                            <span class="track" aria-hidden="true"><span class="fill"
+                                  th:classappend="${c.medianVar30() >= 0} ? 'up' : 'down'"
+                                  th:style="'width:' + ${a.barWidth(c)} + '%'"></span></span>
+                            <span class="delta" th:classappend="${@fmt.tone(c.medianVar30())}" th:text="${@fmt.pct(c.medianVar30())}">+12 %</span>
+                        </div>
+                    </td>
+                    <td class="num"><span class="delta" th:classappend="${@fmt.tone(c.medianYoy())}" th:text="${@fmt.pct(c.medianYoy())}">+30 %</span></td>
+                    <td class="num"><span th:text="${c.rising()}">6</span> / <span th:text="${c.falling()}">1</span></td>
+                    <td class="num">
+                        <span th:text="${c.alerts()}">5</span>
+                        <span class="muted" th:if="${c.highAlerts() > 0}" th:text="'(' + ${c.highAlerts()} + ' altas)'">(2 altas)</span>
+                    </td>
+                    <td>
+                        <th:block th:if="${c.topMover() != null}">
+                            <a th:href="@{/product(name=${c.topMover()})}" th:text="${c.topMover()}">Papa Unica</a>
+                            <span class="delta" th:classappend="${@fmt.tone(c.topMoverVar30())}" th:text="${@fmt.pct(c.topMoverVar30())}">+27 %</span>
+                        </th:block>
+                    </td>
+                    <td><a class="button-secondary" th:href="@{/compare(preset=${'cat-' + c.category().key()})}">Comparar</a></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ===================== reacción del sistema ===================== -->
+    <section id="reaccion" class="card mt" aria-labelledby="t-reaccion">
+        <div class="section-title">
+            <h2 id="t-reaccion">Cómo reaccionó el sistema</h2>
+            <a th:href="@{/system}">Las reglas →</a>
+        </div>
+        <p class="sub">Alertas recientes y la cuenta que hizo Spark · abre una para ver el detalle</p>
+        <ol class="reactions" th:unless="${a.reactions().isEmpty()}">
+            <li class="reaction" th:each="r, it : ${a.reactions()}">
+                <span class="node" th:classappend="${r.alert().severity()}" aria-hidden="true"></span>
+                <details>
+                    <summary>
+                        <span class="sev" th:classappend="'sev-' + ${r.alert().severity()}"
+                              th:text="${r.alert().severity().name() == 'HIGH' ? 'Alta' : (r.alert().severity().name() == 'MEDIUM' ? 'Media' : 'Baja')}">Alta</span>
+                        <span class="r-title" th:text="${r.title()}">Zanahoria · 23/11/2026 · subida de +55 %</span>
+                        <span class="tag supply" th:if="${r.alert().isExplainedBySupplyDrop()}">Menor abastecimiento</span>
+                    </summary>
+                    <ol class="steps">
+                        <li th:each="s : ${r.steps()}" th:text="${s}">paso</li>
+                    </ol>
+                    <p class="conclusion" th:text="${r.conclusion()}">Reacción del sistema</p>
+                </details>
+            </li>
+        </ol>
+        <p class="muted" th:if="${a.reactions().isEmpty()}">Sin alertas de severidad media o alta en los últimos 30 días.</p>
+    </section>
+
+    <!-- ===================== diagnóstico ===================== -->
+    <section id="diagnostico" class="card mt" aria-labelledby="t-diag">
+        <h2 id="t-diag">Diagnóstico por producto</h2>
+        <p class="sub">Situación de 30 días y señales · clic en un producto para ver más</p>
+
+        <div class="filters" style="justify-content:space-between">
+            <div class="chips" role="group" aria-label="Filtrar por situación" id="sit-filter">
+                <button type="button" class="chip" data-sit="" aria-pressed="true">Todos<span class="n" th:text="${p.products()}">59</span></button>
+                <button type="button" class="chip" th:each="s : ${situations}" th:attr="data-sit=${s.name()}" aria-pressed="false">
+                    <span th:text="${s.label()}">Alza</span><span class="n"
+                        th:text="${s.name() == 'STRONG_RISE' ? p.strongRise() : (s.name() == 'RISE' ? p.rise() : (s.name() == 'STABLE' ? p.stable() : (s.name() == 'FALL' ? p.fall() : p.strongFall())))}">3</span>
+                </button>
+            </div>
+            <label>Buscar producto
+                <input type="search" id="diag-search" placeholder="Ej.: papa, ají…" autocomplete="off">
+            </label>
+        </div>
+
+        <div class="table-wrap">
+            <table class="diag-table" id="diag-table">
+                <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Situación</th>
+                    <th class="num">Var. 30 días</th>
+                    <th class="num">Var. anual</th>
+                    <th>Rango histórico</th>
+                    <th class="num opt">Corr. precio-volumen</th>
+                    <th class="num">Alertas 30 d</th>
+                    <th>Señales</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="d : ${a.diagnoses()}" th:data-sit="${d.situation().name()}"
+                    th:data-name="${#strings.toLowerCase(d.productName())}">
+                    <td><a th:href="@{/product(name=${d.productName()})}" th:text="${d.productName()}">Zanahoria</a></td>
+                    <td><span class="sit" th:classappend="'tone-' + ${d.situation().tone()}" th:text="${d.situation().label()}">Alza fuerte</span></td>
+                    <td class="num"><span class="delta" th:classappend="${@fmt.tone(d.summary().varPct30d())}"
+                                          th:text="${@fmt.pct(d.summary().varPct30d())}">+64 %</span></td>
+                    <td class="num"><span class="delta" th:classappend="${@fmt.tone(d.summary().varPctYoy())}"
+                                          th:text="${@fmt.pct(d.summary().varPctYoy())}">+96 %</span></td>
+                    <td style="white-space:nowrap">
+                        <th:block th:if="${d.summary().positionInHistoricalRange() != null}">
+                            <span class="mini-range" aria-hidden="true"><i th:style="'left:' + ${d.summary().positionInHistoricalRange() * 100} + '%'"></i></span>
+                            <span class="mini-range-label" th:text="${@fmt.num(d.summary().positionInHistoricalRange() * 100, 0)} + ' %'">72 %</span>
+                        </th:block>
+                        <span class="muted" th:unless="${d.summary().positionInHistoricalRange() != null}">—</span>
+                    </td>
+                    <td class="num" th:text="${@fmt.num(d.summary().corrPriceVolume(), 2)}">−0.32</td>
+                    <td class="num">
+                        <span th:text="${d.alerts().size()}">3</span>
+                        <span class="muted" th:if="${d.highAlerts() > 0}" th:text="'(' + ${d.highAlerts()} + ' altas)'">(2 altas)</span>
+                    </td>
+                    <td class="cell-wide">
+                        <div class="flags" style="margin:0">
+                            <span class="tag supply" th:if="${d.supplyExplained()}">Menor abastecimiento</span>
+                            <span class="tag" th:if="${d.nearHistoricalHigh()}">Máximo histórico</span>
+                            <span class="tag" th:if="${d.nearHistoricalLow()}">Mínimo histórico</span>
+                            <span class="tag" th:if="${d.supplySensitive() and !d.supplyExplained()}">Sensible al volumen</span>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="muted" id="diag-empty" hidden>Ningún producto coincide con el filtro.</p>
+        <details class="more">
+            <summary>¿Qué significa cada columna?</summary>
+            <ul class="help-list">
+                <li><b>Rango histórico:</b> 0 % = precio mínimo desde 2024, 100 % = máximo.</li>
+                <li><b>Corr. precio-volumen:</b> negativa = si entra menos producto, sube.</li>
+                <li th:each="n : ${a.qualityNotes()}"><b>Calidad de datos:</b> <span th:text="${n}">nota</span></li>
+            </ul>
+        </details>
+    </section>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+<script>
+    // Filtro del diagnóstico por situación y por nombre (sin recargar la página).
+    (function () {
+        var chips = document.querySelectorAll("#sit-filter .chip");
+        var input = document.getElementById("diag-search");
+        var rows = document.querySelectorAll("#diag-table tbody tr");
+        var empty = document.getElementById("diag-empty");
+        var current = "";
+
+        function norm(s) { return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
+
+        function apply() {
+            var q = norm(input.value.trim());
+            var shown = 0;
+            rows.forEach(function (r) {
+                var ok = (!current || r.dataset.sit === current) && norm(r.dataset.name).indexOf(q) !== -1;
+                r.hidden = !ok;
+                if (ok) shown++;
+            });
+            empty.hidden = shown !== 0;
+        }
+
+        chips.forEach(function (c) {
+            c.addEventListener("click", function () {
+                current = c.dataset.sit;
+                chips.forEach(function (x) { x.setAttribute("aria-pressed", x === c ? "true" : "false"); });
+                apply();
+            });
+        });
+        input.addEventListener("input", apply);
+    })();
+</script>
+</body>
+</html>
