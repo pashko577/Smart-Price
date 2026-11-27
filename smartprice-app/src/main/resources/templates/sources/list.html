@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Fuentes')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main>
+    <div class="page-head">
+        <h1>Fuentes y trazabilidad</h1>
+        <p>Cada precio del sistema se puede rastrear hasta el archivo original del que proviene.</p>
+    </div>
+
+    <section class="grid grid-4" aria-label="Cobertura">
+        <div class="card stat">
+            <div class="label">Archivos de origen</div>
+            <div class="value" th:text="${coverage.files().size()}">7</div>
+            <div class="note">exportaciones de SISAP (MIDAGRI)</div>
+        </div>
+        <div class="card stat">
+            <div class="label">Observaciones</div>
+            <div class="value" th:text="${@fmt.num(coverage.totalRows())}">62,599</div>
+            <div class="note">producto × día</div>
+        </div>
+        <div class="card stat">
+            <div class="label">Desde</div>
+            <div class="value" th:text="${@fmt.date(coverage.firstDate())}">01/01/2024</div>
+        </div>
+        <div class="card stat">
+            <div class="label">Hasta</div>
+            <div class="value" th:text="${@fmt.date(coverage.lastDate())}">26/11/2026</div>
+            <div class="note" th:text="${@fmt.num(coverage.days())} + ' días continuos'">1,061 días</div>
+        </div>
+    </section>
+
+    <section class="card" style="margin-top:16px">
+        <h2>Archivos cargados</h2>
+        <p class="sub">Exportación manual "Precio Promedio, Volumen" de SISAP, en bloques de unos 5 meses por el límite de la consulta</p>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Archivo</th>
+                    <th>Periodo</th>
+                    <th class="num">Filas</th>
+                    <th>SHA-256</th>
+                    <th>Lector</th>
+                    <th>Adquisición</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="f : ${coverage.files()}">
+                    <td th:text="${f.fileName()}">sisap_2024-01_2024-05.xls</td>
+                    <td th:text="${@fmt.date(f.firstDate())} + ' – ' + ${@fmt.date(f.lastDate())}">01/01/2024 – 31/05/2024</td>
+                    <td class="num" th:text="${@fmt.num(f.rows())}">8,968</td>
+                    <td><code th:text="${f.shortSha256()}" th:title="${f.sha256()}">5900efd8a811</code></td>
+                    <td class="muted" th:text="${f.readerVersion()}">sisap_v1</td>
+                    <td class="muted" th:text="${f.acquisitionMethod() == 'manual_export' ? 'Exportación manual' : f.acquisitionMethod()}">Exportación manual</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card" style="margin-top:16px">
+        <h2>Boletines procesados por Streaming</h2>
+        <p class="sub">Spark Structured Streaming: cada boletín PDF diario del GMML se procesa al llegar
+            (comandos <code>ingest-pdf</code> y <code>stream-prices</code>)</p>
+        <div class="table-wrap" th:unless="${runs.isEmpty()}">
+            <table>
+                <thead>
+                <tr>
+                    <th>Inicio</th>
+                    <th>Boletín</th>
+                    <th class="num">Leídas</th>
+                    <th class="num">Del catálogo</th>
+                    <th class="num">Nuevas</th>
+                    <th class="num">Ya existían</th>
+                    <th>Validación cruzada</th>
+                    <th class="num">Alertas</th>
+                    <th class="num">Duración</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="r : ${runs}">
+                    <td class="muted" th:text="${@fmt.instant(r.startedAt())}">26/11/2026 19:20</td>
+                    <td th:text="${#strings.listJoin(r.files(), ', ')}">boletin.pdf</td>
+                    <td class="num" th:text="${r.rowsRead()}">72</td>
+                    <td class="num" th:text="${r.rowsValid()}">54</td>
+                    <td class="num" th:text="${r.rowsNew()}">0</td>
+                    <td class="num" th:text="${r.rowsExisting()}">54</td>
+                    <td>
+                        <span th:if="${r.rowsExisting() == 0}" class="muted">—</span>
+                        <span th:if="${r.rowsExisting() > 0 and r.crossCheckPassed()}"
+                              th:text="${r.priceMatches()} + ' de ' + ${r.rowsExisting()} + ' coinciden'">54 de 54 coinciden</span>
+                        <span th:if="${r.rowsExisting() > 0 and !r.crossCheckPassed()}" class="sev sev-HIGH"
+                              th:text="${r.priceMismatches()} + ' difieren'">2 difieren</span>
+                    </td>
+                    <td class="num" th:text="${r.alertsGenerated()}">1</td>
+                    <td class="num muted" th:text="${@fmt.num(r.durationMs() / 1000.0, 1)} + ' s'">8.2 s</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="muted" th:if="${runs.isEmpty()}">Todavía no se procesó ningún boletín por Streaming.</p>
+    </section>
+
+    <section class="grid grid-2" style="margin-top:16px">
+        <div class="card">
+            <h2>Cómo se obtienen los datos</h2>
+            <p class="sub">Del archivo original a la pantalla</p>
+            <ol style="margin:0;padding-left:20px;line-height:1.8">
+                <li>Exportación de SISAP (tabla HTML con extensión .xls, Latin-1).</li>
+                <li>Lectura y conversión a formato largo (job Java <code>sisap-to-csv</code>).</li>
+                <li>Carga en MongoDB Atlas con Apache Spark, sin duplicados (<code>load-sisap</code>).</li>
+                <li>Indicadores y alertas con Apache Spark (<code>batch-analytics</code>).</li>
+                <li>Boletines diarios nuevos con Spark Structured Streaming (<code>ingest-pdf</code> + <code>stream-prices</code>).</li>
+                <li>Esta aplicación (Spring Boot) solo lee los resultados.</li>
+            </ol>
+        </div>
+        <div class="card">
+            <h2>Notas de calidad de datos</h2>
+            <p class="sub">Limitaciones conocidas</p>
+            <ul style="margin:0;padding-left:20px;line-height:1.7">
+                <li>Son precios <strong>mayoristas</strong> promedio, no precios al consumidor.</li>
+                <li>"Papa Blanca" tiene el mismo precio que "Papa Yungay" en 1 059 de 1 061 días:
+                    probablemente es una categoría agregada; no son evidencias independientes.</li>
+                <li>Los datos de SISAP coincidieron con el boletín PDF del 06-11-2026 en los 54 productos comunes.</li>
+                <li>SISAP tenía el certificado TLS vencido (26-11-2026): la descarga se hizo de forma manual.</li>
+            </ul>
+        </div>
+    </section>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

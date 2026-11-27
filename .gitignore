@@ -1,0 +1,24 @@
+# Secretos
+.env
+
+# Maven / Java
+target/
+.mvn/wrapper/maven-wrapper.jar
+*.class
+
+# Spark
+spark-warehouse/
+metastore_db/
+derby.log
+data/streaming/checkpoint/
+data/streaming/staging/
+data/streaming/incoming/
+
+# Datos generados (los originales de data/raw sí se pueden versionar si se desea)
+data/interim/
+data/processed/
+
+# Editores
+.idea/
+.vscode/
+*.iml

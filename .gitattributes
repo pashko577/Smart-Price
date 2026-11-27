@@ -1,0 +1,21 @@
+# Datos originales: byte a byte, sin conversión de saltos de línea.
+# Las exportaciones de SISAP son HTML con extensión .xls; si Git las tratara como texto,
+# cambiaría su contenido y su SHA-256 dejaría de coincidir con source_files.
+data/raw/** binary
+smartprice-jobs/src/test/resources/** binary
+*.xls binary
+*.pdf binary
+
+# Scripts
+mvnw text eol=lf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Código y documentación
+*.java text eol=lf
+*.xml text eol=lf
+*.properties text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf

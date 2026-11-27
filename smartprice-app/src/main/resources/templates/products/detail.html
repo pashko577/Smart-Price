@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${summary.productName()})}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main>
+    <div class="page-head" style="display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap">
+        <div>
+            <p><a th:href="@{/products}">← Productos</a></p>
+            <h1 th:text="${summary.productName()}">Zanahoria</h1>
+            <p>
+                Precio promedio mayorista · Gran Mercado Mayorista de Lima ·
+                último dato <span th:text="${@fmt.date(summary.lastDate())}">26/11/2026</span>
+            </p>
+        </div>
+        <label class="muted" style="font-size:12.5px;display:flex;flex-direction:column;gap:4px">Cambiar de producto
+            <select id="product-select" aria-label="Cambiar de producto">
+                <option th:each="n : ${productNames}" th:value="${n}" th:text="${n}"
+                        th:selected="${n == summary.productName()}">Producto</option>
+            </select>
+        </label>
+    </div>
+
+    <section class="card">
+        <div class="kv">
+            <div>
+                <div class="label">Último precio</div>
+                <div class="value" th:text="${@fmt.soles(summary.lastPrice())}">S/ 3.04</div>
+            </div>
+            <div>
+                <div class="label">Promedio 30 días</div>
+                <div class="value" th:text="${@fmt.soles(summary.avg30d())}">S/ 2.89</div>
+                <span class="delta" th:classappend="${@fmt.tone(summary.varPct30d())}"
+                      th:text="${@fmt.pct(summary.varPct30d())} + ' vs 30 días anteriores'">+64 %</span>
+            </div>
+            <div>
+                <div class="label">Frente a hace un año</div>
+                <div class="value"><span class="delta" th:classappend="${@fmt.tone(summary.varPctYoy())}"
+                                         th:text="${@fmt.pct(summary.varPctYoy())}">+96 %</span></div>
+                <span class="muted" style="font-size:13px">promedio de 30 días vs mismo periodo</span>
+            </div>
+            <div>
+                <div class="label">Relación con el volumen</div>
+                <div class="value" th:text="${@fmt.num(summary.corrPriceVolume(), 2)}">−0.32</div>
+                <span class="muted" style="font-size:13px"
+                      th:text="${summary.priceReactsToSupply()} ? 'Si entra menos producto, el precio tiende a subir' : 'Relación débil entre volumen y precio'">texto</span>
+            </div>
+        </div>
+
+        <!-- th:if se evalúa antes que th:with: la condición usa el método directamente. -->
+        <div th:if="${summary.positionInHistoricalRange() != null}"
+             th:with="pos=${summary.positionInHistoricalRange()}" style="margin-top:20px">
+            <div class="label muted" style="font-size:12.5px">Último precio dentro del rango histórico</div>
+            <!-- Thymeleaf 3.1 no permite beans (@fmt) en atributos genéricos: el texto accesible va en th:text. -->
+            <span class="sr-only"
+                  th:text="'Mínimo ' + ${@fmt.soles(summary.minAll())} + ', máximo ' + ${@fmt.soles(summary.maxAll())} + ', actual ' + ${@fmt.soles(summary.lastPrice())}">rango</span>
+            <div class="range" aria-hidden="true">
+                <div class="marker" th:style="'left:' + ${pos * 100} + '%'"></div>
+            </div>
+            <div class="range-labels">
+                <span th:text="'Mínimo ' + ${@fmt.soles(summary.minAll())}">Mínimo</span>
+                <span th:text="'Máximo ' + ${@fmt.soles(summary.maxAll())}">Máximo</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="card" style="margin-top:16px" aria-label="Historial de precio y volumen">
+        <div class="filters" style="justify-content:space-between;margin-bottom:8px">
+            <div>
+                <h2>Precio promedio diario</h2>
+                <p class="sub" style="margin:0">Soles por kg (o por litro o unidad, según el producto)</p>
+            </div>
+            <div class="segmented" role="group" aria-label="Periodo">
+                <button type="button" data-days="90">90 días</button>
+                <button type="button" data-days="365" aria-pressed="true">1 año</button>
+                <button type="button" data-days="730">2 años</button>
+                <button type="button" data-days="0">Todo</button>
+            </div>
+        </div>
+        <div id="chart-price" class="chart chart-price" role="img"
+             th:aria-label="'Precio diario de ' + ${summary.productName()}"></div>
+
+        <h2 style="margin-top:12px">Volumen ingresado</h2>
+        <p class="sub" style="margin:0">Toneladas por día · mismo periodo que el gráfico de precio</p>
+        <div id="chart-volume" class="chart chart-volume" role="img"
+             th:aria-label="'Volumen diario de ' + ${summary.productName()}"></div>
+        <p class="muted" id="chart-status" style="font-size:13px" aria-live="polite"></p>
+    </section>
+
+    <section class="grid grid-2" style="margin-top:16px">
+        <div class="card">
+            <h2>Resumen mensual</h2>
+            <p class="sub">Últimos 12 meses · tabla de datos de los gráficos</p>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Mes</th>
+                        <th class="num">Promedio</th>
+                        <th class="num">vs mes ant.</th>
+                        <th class="num">vs año ant.</th>
+                        <th class="num">Vol. prom. (t)</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="m : ${monthly}">
+                        <td>
+                            <span th:text="${m.month()}">2026-11</span>
+                            <span class="tag" th:if="${m.isPartial()}" title="Menos de 15 días con dato">parcial</span>
+                        </td>
+                        <td class="num" th:text="${@fmt.soles(m.avgPrice())}">S/ 3.05</td>
+                        <td class="num"><span class="delta" th:classappend="${@fmt.tone(m.varPctVsPrevMonth())}"
+                                              th:text="${@fmt.pct(m.varPctVsPrevMonth())}">+68 %</span></td>
+                        <td class="num"><span class="delta" th:classappend="${@fmt.tone(m.varPctVsPrevYear())}"
+                                              th:text="${@fmt.pct(m.varPctVsPrevYear())}">+114 %</span></td>
+                        <td class="num" th:text="${@fmt.num(m.avgVolumeT(), 0)}">260</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Alertas del producto</h2>
+            <p class="sub">Severidad media o alta, más recientes primero</p>
+            <div class="table-wrap" th:unless="${alerts.isEmpty()}">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Severidad</th>
+                        <th class="num">Variación</th>
+                        <th class="num">Volumen vs 30 días</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="a : ${alerts}">
+                        <td th:text="${@fmt.date(a.observedAt())}">23/11/2026</td>
+                        <td><span class="sev" th:classappend="'sev-' + ${a.severity()}"
+                                  th:text="${a.severity().name() == 'HIGH' ? 'Alta' : (a.severity().name() == 'MEDIUM' ? 'Media' : 'Baja')}">Alta</span></td>
+                        <td class="num"><span class="delta" th:classappend="${@fmt.tone(a.changePct())}"
+                                              th:text="${@fmt.pct(a.changePct())}">+55 %</span></td>
+                        <td class="num" th:text="${@fmt.pct(a.volumeChangePct())}">−84 %</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="muted" th:if="${alerts.isEmpty()}">Sin alertas de severidad media o alta.</p>
+        </div>
+    </section>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+<!-- ECharts 5.6.0 servido localmente (licencia en /js/vendor/ECHARTS-LICENSE.txt): funciona sin internet. -->
+<script th:src="@{/js/vendor/echarts-5.6.0.min.js}"></script>
+<script th:src="@{/js/product-charts.js}"></script>
+<script th:inline="javascript">
+    // Cada valor inlined va solo en su línea: Thymeleaf reemplaza el literal por defecto que sigue al comentario.
+    var productName = /*[[${summary.productName()}]]*/ "Zanahoria";
+    var pricesUrl = /*[[@{/api/prices}]]*/ "/api/prices";
+    var productUrl = /*[[@{/product}]]*/ "/product";
+    SmartPriceCharts.init(productName, pricesUrl);
+    document.getElementById("product-select").addEventListener("change", function (e) {
+        window.location.href = productUrl + "?name=" + encodeURIComponent(e.target.value);
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Dashboard')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main>
+    <div class="page-head">
+        <h1>Inteligencia de precios</h1>
+        <p>
+            Gran Mercado Mayorista de Lima · datos al
+            <strong th:text="${@fmt.date(coverage.lastDate())}">26/11/2026</strong>
+        </p>
+    </div>
+
+    <section class="grid grid-4" aria-label="Resumen">
+        <div class="card stat">
+            <div class="label">Productos monitoreados</div>
+            <div class="value" th:text="${productCount}">59</div>
+            <div class="note">
+                <span th:text="${@fmt.num(coverage.totalRows())}">62,599</span> observaciones diarias
+            </div>
+        </div>
+        <div class="card stat">
+            <div class="label">Histórico</div>
+            <div class="value" th:text="${@fmt.num(coverage.days())} + ' días'">1,061 días</div>
+            <div class="note" th:text="'Desde ' + ${@fmt.date(coverage.firstDate())}">Desde 01/01/2024</div>
+        </div>
+        <div class="card stat">
+            <div class="label">Más caros que hace 30 días</div>
+            <div class="value" th:text="${risingCount}">20</div>
+            <div class="note">
+                <span th:text="${fallingCount}">10</span> más baratos (variación de 5 % o más)
+            </div>
+        </div>
+        <div class="card stat">
+            <div class="label" th:text="'Alertas de severidad alta, últimos ' + ${alertWindowDays} + ' días'">Alertas altas</div>
+            <div class="value" th:text="${alertStats.high()}">12</div>
+            <div class="note">
+                <span th:text="${alertStats.total()}">40</span> alertas en total
+                (<span th:text="${alertStats.spikes()}">25</span> subidas,
+                <span th:text="${alertStats.drops()}">15</span> bajadas)
+            </div>
+        </div>
+    </section>
+
+    <section class="grid grid-2" style="margin-top:16px" aria-label="Variaciones de 30 días">
+        <div class="card">
+            <h2>Mayores subidas</h2>
+            <p class="sub">Promedio de los últimos 30 días frente a los 30 días anteriores</p>
+            <ul class="movers" th:with="maxUp=${risers.isEmpty() ? 1 : risers[0].varPct30d()}">
+                <li th:each="s : ${risers}">
+                    <a class="name" th:href="@{/product(name=${s.productName()})}" th:text="${s.productName()}">Producto</a>
+                    <div class="track" aria-hidden="true">
+                        <div class="fill up" th:style="'width:' + ${s.varPct30d() / maxUp * 100} + '%'"></div>
+                    </div>
+                    <span class="delta" th:classappend="${@fmt.tone(s.varPct30d())}"
+                          th:text="${@fmt.pct(s.varPct30d())}">+10 %</span>
+                </li>
+            </ul>
+            <p class="muted" th:if="${risers.isEmpty()}">Ningún producto subió en los últimos 30 días.</p>
+        </div>
+        <div class="card">
+            <h2>Mayores bajadas</h2>
+            <p class="sub">Promedio de los últimos 30 días frente a los 30 días anteriores</p>
+            <ul class="movers" th:with="maxDown=${fallers.isEmpty() ? -1 : fallers[0].varPct30d()}">
+                <li th:each="s : ${fallers}">
+                    <a class="name" th:href="@{/product(name=${s.productName()})}" th:text="${s.productName()}">Producto</a>
+                    <div class="track" aria-hidden="true">
+                        <div class="fill down" th:style="'width:' + ${s.varPct30d() / maxDown * 100} + '%'"></div>
+                    </div>
+                    <span class="delta" th:classappend="${@fmt.tone(s.varPct30d())}"
+                          th:text="${@fmt.pct(s.varPct30d())}">−10 %</span>
+                </li>
+            </ul>
+            <p class="muted" th:if="${fallers.isEmpty()}">Ningún producto bajó en los últimos 30 días.</p>
+        </div>
+    </section>
+
+    <section class="card" style="margin-top:16px" aria-label="Alertas recientes">
+        <div class="chart-title">
+            <div>
+                <h2>Alertas recientes</h2>
+                <p class="sub">Variaciones diarias fuera del rango normal de cada producto (severidad media o alta)</p>
+            </div>
+            <a th:href="@{/alerts}">Ver todas</a>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Producto</th>
+                    <th>Severidad</th>
+                    <th class="num">Antes</th>
+                    <th class="num">Ahora</th>
+                    <th class="num">Variación</th>
+                    <th class="num">Volumen vs 30 días</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="a : ${recentAlerts}">
+                    <td th:text="${@fmt.date(a.observedAt())}">23/11/2026</td>
+                    <td><a th:href="@{/product(name=${a.productName()})}" th:text="${a.productName()}">Zanahoria</a></td>
+                    <td><span class="sev" th:classappend="'sev-' + ${a.severity()}"
+                              th:text="${a.severity().name() == 'HIGH' ? 'Alta' : (a.severity().name() == 'MEDIUM' ? 'Media' : 'Baja')}">Alta</span></td>
+                    <td class="num" th:text="${@fmt.soles(a.previousPrice())}">S/ 2.73</td>
+                    <td class="num" th:text="${@fmt.soles(a.currentPrice())}">S/ 4.23</td>
+                    <td class="num"><span class="delta" th:classappend="${@fmt.tone(a.changePct())}"
+                                          th:text="${@fmt.pct(a.changePct())}">+55 %</span></td>
+                    <td class="num" th:text="${@fmt.pct(a.volumeChangePct())}">−84 %</td>
+                    <td><span class="tag supply" th:if="${a.isExplainedBySupplyDrop()}">Menor abastecimiento</span></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+</body>
+</html>

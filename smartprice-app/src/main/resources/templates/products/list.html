@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Productos')}"></head>
+<body>
+<header th:replace="~{fragments/layout :: header}"></header>
+
+<main>
+    <div class="page-head">
+        <h1>Productos</h1>
+        <p>Último precio promedio mayorista y su variación. Haz clic en un producto para ver su historial.</p>
+    </div>
+
+    <div class="notice error" th:if="${error}" th:text="${error}">Error</div>
+
+    <div class="filters">
+        <label>Buscar producto
+            <input type="search" id="product-search" placeholder="Ej.: papa, tomate…" autocomplete="off">
+        </label>
+    </div>
+
+    <section class="card">
+        <div class="table-wrap">
+            <table id="products-table">
+                <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th class="num">Último precio</th>
+                    <th class="num">Promedio 30 días</th>
+                    <th class="num">Var. 30 días</th>
+                    <th class="num">Var. anual</th>
+                    <th class="num">Promedio 365 días</th>
+                    <th class="num">Corr. precio-volumen</th>
+                    <th>Último dato</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="s : ${summaries}" th:data-name="${#strings.toLowerCase(s.productName())}">
+                    <td><a th:href="@{/product(name=${s.productName()})}" th:text="${s.productName()}">Producto</a></td>
+                    <td class="num" th:text="${@fmt.soles(s.lastPrice())}">S/ 3.04</td>
+                    <td class="num" th:text="${@fmt.soles(s.avg30d())}">S/ 2.89</td>
+                    <td class="num"><span class="delta" th:classappend="${@fmt.tone(s.varPct30d())}"
+                                          th:text="${@fmt.pct(s.varPct30d())}">+64 %</span></td>
+                    <td class="num"><span class="delta" th:classappend="${@fmt.tone(s.varPctYoy())}"
+                                          th:text="${@fmt.pct(s.varPctYoy())}">+96 %</span></td>
+                    <td class="num" th:text="${@fmt.soles(s.avg365d())}">S/ 1.20</td>
+                    <td class="num" th:text="${@fmt.num(s.corrPriceVolume(), 2)}">−0.32</td>
+                    <td class="muted" th:text="${@fmt.date(s.lastDate())}">26/11/2026</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="muted" id="no-results" hidden>Ningún producto coincide con la búsqueda.</p>
+    </section>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+<script>
+    (function () {
+        var input = document.getElementById("product-search");
+        var rows = document.querySelectorAll("#products-table tbody tr");
+        var empty = document.getElementById("no-results");
+        input.addEventListener("input", function () {
+            var q = input.value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+            var shown = 0;
+            rows.forEach(function (r) {
+                var name = r.dataset.name.normalize("NFD").replace(/[̀-ͯ]/g, "");
+                var match = name.indexOf(q) !== -1;
+                r.hidden = !match;
+                if (match) shown++;
+            });
+            empty.hidden = shown !== 0;
+        });
+    })();
+</script>
+</body>
+</html>
